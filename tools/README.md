@@ -11,6 +11,7 @@ running (`start_all.bat`: web app on 3000, server on 8000, or on 8010 with `MUDR
 | Tool | What it does |
 |---|---|
 | `download_asr_model.py` | Downloads the streaming speech model the meeting features need into `app/backend/var/asr_models/` (default 2023-06-26 zipformer, 310 MB download, 68 MB kept; `--model small` = 20M, 42 MB). `start_all.bat` runs it when the model is missing. |
+| `build_runtime_pack.py` | Writes `data/runtime/` (committed) from the local dataset: the example per word / phrase / letter the app shows, the avatar's 3D examples and the app recordings, landmark points only, metadata from an allow-list (no paths, file names or names; recorders renamed `signer-01`), README with sources and licences, `SHA256SUMS`. `--exclude islwords,islsentences,letters,app,...` leaves sources out. Rerun after recording new signs, then commit `data/runtime/`. |
 | `chrome_gpu_high_performance.ps1` | Lets Chrome use the laptop's NVIDIA / AMD card (Windows per-app GPU preference); `-Undo` removes it. Restart Chrome afterwards (`chrome://restart`). Measured on the development laptop: hand tracking 46 -> 17 ms per frame. |
 
 ## live_benchmark/ - camera tracking and recognition, end to end

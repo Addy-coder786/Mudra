@@ -68,6 +68,28 @@ def frames_to_sequence(frames: list[Frame], width: int, height: int, meta: dict)
     )
 
 
+def seed_recordings(data_root: Path, pack: Path) -> int:
+    """Fresh clone: copy the committed app takes (data/runtime: manifest_app.csv + app/, build_runtime_pack.py) into
+    ``data_root`` once, so taught words work and new takes are added next to them. Never touches an existing
+    manifest. Returns the takes copied."""
+    manifest = Path(data_root) / "metadata" / f"manifest_{SOURCE}.csv"
+    packed = Path(pack) / f"manifest_{SOURCE}.csv"
+    if manifest.exists() or not packed.exists():
+        return 0
+    rows = []
+    for r in read_manifest(packed):
+        src = Path(r.landmarks_path)
+        if not src.exists():
+            continue
+        dst = Path(data_root) / "processed" / "landmarks" / SOURCE / r.label / src.name
+        dst.parent.mkdir(parents=True, exist_ok=True)
+        dst.write_bytes(src.read_bytes())
+        r.raw_path = r.landmarks_path = str(dst)
+        rows.append(r)
+    write_manifest(rows, manifest)
+    return len(rows)
+
+
 def signer_key(name: str) -> str:
     return normalize_label(name).lower() or "anonymous"
 

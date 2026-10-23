@@ -11,7 +11,7 @@
 | Last updated at commit | the commit after `b5ee2e6`: v15b, tools/, speech model download, GPU in diagnostics (Section 21) |
 | Deployed models | words: `app/backend/models/isl_mudra_combined_v15b_bilstm` (339 signs + `_BACKGROUND_`; v13b and older kept for rollback); letters: `isl_letters_v1` (A-Z); phrases: `isl_phrases_v1_bilstm` (99); experimental, opt-in: `mudra_intro_static_pose_medoids_v1` (teammate's static poses, 10 live words) |
 | Live settings | `training/configs/streaming.json` (commit threshold 0.7), `training/configs/fewshot.json` |
-| Tests | 97 backend passing (`pytest app/backend/tests`, 2026-10-21: API on the deployed model, library, references, speech, SignLine Emergency; data-dependent tests skip without `data/metadata`) + 51 frontend (`npm test` in `app/frontend`: avatar, meeting, tracker, game, practice, emergency) |
+| Tests | 135 backend passing (`pytest app/backend/tests`, 2026-10-23: API on the deployed model, library, references, speech, SignLine Emergency; data-dependent tests skip without `data/metadata`) + 51 frontend (`npm test` in `app/frontend`: avatar, meeting, tracker, game, practice, emergency) |
 | Repository | `https://github.com/Addy-coder786/Mudra` (remote `mudra`); older pushes: `Addy-coder786/ISL_Addy` (remote `origin`) |
 | Overall state | Recognition is accurate on new takes by **signers seen in training**; accuracy for new people is unmeasured (about 67% on unseen recording sessions); **live use on a real laptop webcam is not yet reliable** (Section 16). Audit: `docs/AUDIT_2026-10-13.md` |
 
@@ -259,6 +259,7 @@ build a sentence and speak it.
 │   ├── scripts/                command-line tools (Section 11)
 │   └── tests/                  unit and end-to-end tests
 ├── data/
+│   ├── runtime/                COMMITTED: landmark examples the app reads (words, phrases, letters, 3D, app takes)
 │   ├── README.md               data layout, sources, how to rebuild landmarks and splits
 │   └── metadata/               manifests + split sets: NOT in the repository (kept locally, shared separately)
 └── docs/
@@ -274,7 +275,7 @@ build a sentence and speak it.
     └── planning/               the client's original review documents
 ```
 
-Not committed (see `.gitignore`): `node_modules/`, `.venv/`, all datasets (`data/raw/`, `data/external/`,
+Not committed (see `.gitignore`): `node_modules/`, `.venv/`, all training datasets (`data/raw/`, `data/external/`,
 `data/processed/`, `data/metadata/` manifests and split CSVs), root `/experiments/` (training runs, logs,
 reports), `training/assets/mediapipe/*.task`, `.env`. The repository contains code, configs, docs and
 the deployed model only.
@@ -502,7 +503,7 @@ Backend environment variables (`app/backend/mudra_api/settings.py`, `main.py`), 
 | `SIGNLINE_AUTH_COOKIE_SECURE` | on when the redirect URI is https | `Secure` flag of the cookies |
 | `SUPABASE_URL`, `SUPABASE_SECRET_KEY`, `SUPABASE_BUCKET`, `SUPABASE_DEFAULT_USER_ID`, `SUPABASE_SKELETON_VIDEO` | – (cloud copies off), `sign_line_video`, the studio's default user, `on` | cloud copies of track points and the skeleton video drawn from them (`docs/CLOUD_STORAGE.md`); the secret key never leaves the server; `off` keeps the rows only |
 | `MUDRA_EVENTS_LOG` | `experiments/logs/stream_events.jsonl` | per-sign decision log |
-| `MUDRA_RECORDINGS_DIR` | `data` | root for `processed/landmarks/app` and `metadata/manifest_app.csv` |
+| `MUDRA_RECORDINGS_DIR` | `data` | root for `processed/landmarks/app` and `metadata/manifest_app.csv`; seeded from `data/runtime/` on the first start (`main.py`) |
 | `MUDRA_SESSION_DIR` | unset (off) | opt-in: save each live `/stream` session's landmarks + client diagnostics as `.npz` for `training/scripts/replay_session.py`; needs the signer's consent |
 | `MUDRA_COMMON_WORD_VIDEO_MODEL_DIR` / `MUDRA_ISL500_VIDEO_MODEL` | `app/backend/models/common_word_video_baseline` / `.../isl500_video_pilot/model.joblib` | teammate's video-word models (opt-in; `combined` uses the first) |
 | `MUDRA_INTRO_STATIC_MODEL` | `app/backend/models/mudra_intro_static_pose_medoids_v1.npz` | teammate's static-pose model (opt-in in the selector; card `.json` beside it) |
@@ -510,6 +511,7 @@ Backend environment variables (`app/backend/mudra_api/settings.py`, `main.py`), 
 | `MUDRA_PHRASES_MODEL_DIR` / `MUDRA_PHRASES_SPLIT` | `app/backend/models/isl_phrases_v1_bilstm` / `data/metadata/splits/phrases_v1/train.csv` | phrase model; split whose clips are phrase examples |
 | `MUDRA_REFERENCE_WORLD_DIR` | `data/processed/landmarks/reference_world` | world-landmark examples for the avatar (`extract_reference_world.py`; optional) |
 | `MUDRA_REFERENCE_SPLIT` | `data/metadata/splits/combined_words_v3/train.csv` | where reference examples come from |
+| (the four data paths above) | fall back to `data/runtime/` (`words.csv`, `phrases.csv`, `letters/`, `reference_world/`) when the full local file is missing and the variable is unset | `settings._data_path` |
 
 Frontend (`app/frontend/.env`, Vite): `VITE_API_URL` (default: the page's own origin, proxied to port 8000 or
 `MUDRA_PORT` by `vite.config.js`; `MUDRA_PUBLIC_TUNNEL=1` allows `.trycloudflare.com` hosts for the judges tunnel),
@@ -762,7 +764,9 @@ about 8 MB), `data/processed/landmarks/` (extracted `.npz`), `data/raw/include_v
 `data/external/include_pose/` (INCLUDE pose release) and `C:\ISL` (team recordings). To train or run
 the data-dependent tests elsewhere, copy `data/metadata/` and `data/processed/` from that machine or
 rebuild them (`data/README.md`). Early versions of some manifests remain in this repository's history
-(commits up to `21086c0`).
+(commits up to `21086c0`). **Exception since 2026-10-23:** `data/runtime/` (committed, 77 MB) holds what the
+app reads at run time (one landmark example per word / phrase / letter, 3D examples, app recordings with the
+recorder as `signer-01`), built by `tools/setup/build_runtime_pack.py`, so any clone runs fully.
 
 **Split sets** (`data/metadata/splits/`, local):
 
@@ -1068,8 +1072,11 @@ cd app\frontend; npm run dev -- --host 127.0.0.1 --port 3000     # app on :3000 
 ```
 
 **Fresh clone:** `python -m venv app/backend/.venv`, `pip install -r app/backend/requirements.txt`
-(installs `mudra_ml` editable), `npm install` in `app/frontend`. The app runs with the committed
-model; the "How to sign it" examples (`/reference`) and the data-dependent tests need the local
+(installs `mudra_ml` editable), `npm install` in `app/frontend` (or just `start_all.bat`). The app runs
+fully with the committed model and `data/runtime/` (examples, avatar, letters, phrases, taught words; checked
+2026-10-23 on a copy without `data/`: all 341 word, 26 letter and 99 phrase examples byte-identical to the
+full-data server, 35 custom words loaded). Not in Git: `app/backend/.env` (Google, Supabase; without it the demo
+sign-in runs and cloud copies are off). The data-dependent tests and training need the local
 `data/metadata/` and `data/processed/` folders. Training needs those plus the MediaPipe `.task`
 files in `training/assets/mediapipe/` from
 `https://storage.googleapis.com/mediapipe-models/<task>/<task>/float16/latest/<task>.task`
@@ -1164,6 +1171,23 @@ that need the model or landmark data skip automatically when those files are mis
 ---
 
 ## 21. Change log (newest first)
+
+### 2026-10-23 · Runtime data pack: the app runs on any PC from a clone (branch `feature/supabase-storage`)
+- Owner: the Learning and Communication data must be in Git so the app works on another PC and on phones.
+  `tools/setup/build_runtime_pack.py` writes `data/runtime/` (932 files, 77 MB, largest 0.45 MB, no LFS): the
+  example per word the app shows (314, same selection as `ReferenceClips`: team words, then INCLUDE videos, then
+  the pose release), per phrase (99), the 3D avatar examples (235), the letter hand shapes (26) and the 254
+  Teach-a-sign takes. Landmark points only; metadata rebuilt from an allow-list, so no local path, video or photo
+  file name, or name (the recorder becomes `signer-01`); README with sources, licences and the INCLUDE citation;
+  `SHA256SUMS`. `--exclude <source>` leaves a source out (for the team recordings whose licence is unconfirmed).
+- Server: `settings._data_path` uses the full local dataset when present, else the pack (env vars still win);
+  `recordings.seed_recordings` (called from `main.py`, not from `create_app`, so tests stay isolated) copies the
+  packed takes into `data/` once when there is no `manifest_app.csv`, so new takes are added next to them.
+  Nothing changes on this PC (full data present).
+- Checked: a copy of exactly what Git ships (no `data/` besides the pack) started cleanly, copied 254 takes,
+  loaded 35 custom words, and served all 341 word, 26 letter and 99 phrase examples byte-identical to this PC's
+  server. Tests: backend 135 (5 new in `test_runtime_pack.py`: no names/paths in the pack, neutral signer ids,
+  the pack alone serves examples, fallback order, seeding once and never over existing recordings).
 
 ### 2026-10-23 · Skeleton video drawn by the server from the track points (branch `feature/supabase-storage`)
 - Owner: every cloud recording must also be watchable as a video in Sanidhya's studio, with no camera picture ever

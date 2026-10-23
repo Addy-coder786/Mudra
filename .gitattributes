@@ -2,3 +2,5 @@
 
 # Shell hooks must keep LF endings to run on Linux/macOS
 .githooks/* text eol=lf
+# The runtime pack is checksummed (data/runtime/SHA256SUMS): keep its bytes exactly as built
+data/runtime/** -text

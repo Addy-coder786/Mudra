@@ -7,6 +7,9 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 BACKEND_DIR = Path(__file__).resolve().parents[1]
+DATA_DIR = BACKEND_DIR.parents[1] / "data"
+# Landmark files the app reads, committed so a fresh clone runs (tools/setup/build_runtime_pack.py)
+RUNTIME_DIR = DATA_DIR / "runtime"
 DEFAULT_ORIGINS = (
     "http://localhost:3000",
     "http://127.0.0.1:3000",
@@ -19,6 +22,13 @@ def _origins() -> list[str]:
     raw = os.getenv("MUDRA_CORS_ORIGINS", "")
     extra = [o.strip() for o in raw.split(",") if o.strip()]
     return [*DEFAULT_ORIGINS, *extra]
+
+
+def _data_path(name: str, full: Path, packed: Path) -> Path:
+    """The env var if set, else the full local dataset when this machine has it, else the runtime pack."""
+    if os.getenv(name):
+        return Path(os.environ[name])
+    return full if full.exists() or not packed.exists() else packed
 
 
 def _optional_float(name: str) -> float | None:
@@ -52,15 +62,18 @@ class Settings:
     )
     # Training split whose clips are shown as "how to sign it" examples
     reference_split: Path = field(
-        default_factory=lambda: Path(os.getenv("MUDRA_REFERENCE_SPLIT", BACKEND_DIR.parents[1] / "data" / "metadata" / "splits" / "combined_words_v3" / "train.csv"))
+        default_factory=lambda: _data_path("MUDRA_REFERENCE_SPLIT", DATA_DIR / "metadata" / "splits" / "combined_words_v3" / "train.csv",
+                                           RUNTIME_DIR / "words.csv")
     )
     # Optional world-landmark re-extraction of those examples (extract_reference_world.py), used by the avatar
     reference_world_dir: Path = field(
-        default_factory=lambda: Path(os.getenv("MUDRA_REFERENCE_WORLD_DIR", BACKEND_DIR.parents[1] / "data" / "processed" / "landmarks" / "reference_world"))
+        default_factory=lambda: _data_path("MUDRA_REFERENCE_WORLD_DIR", DATA_DIR / "processed" / "landmarks" / "reference_world",
+                                           RUNTIME_DIR / "reference_world")
     )
-    # Signs recorded in the app (landmarks only): data/processed/landmarks/app + data/metadata/manifest_app.csv
+    # Signs recorded in the app (landmarks only): data/processed/landmarks/app + data/metadata/manifest_app.csv;
+    # on a fresh clone main.py first copies the packed takes there (recordings.seed_recordings)
     recordings_dir: Path = field(
-        default_factory=lambda: Path(os.getenv("MUDRA_RECORDINGS_DIR", BACKEND_DIR.parents[1] / "data"))
+        default_factory=lambda: Path(os.getenv("MUDRA_RECORDINGS_DIR", DATA_DIR))
     )
     # Optional experimental still-pose model (teammate's MitIndia branch); selectable, never the default
     intro_static_model: Path = field(
@@ -89,11 +102,13 @@ class Settings:
         default_factory=lambda: Path(os.getenv("MUDRA_LETTERS_MODEL_DIR", BACKEND_DIR / "models" / "isl_letters_v1"))
     )
     letters_landmarks: Path = field(
-        default_factory=lambda: Path(os.getenv("MUDRA_LETTERS_LANDMARKS", BACKEND_DIR.parents[1] / "data" / "processed" / "landmarks" / "letters"))
+        default_factory=lambda: _data_path("MUDRA_LETTERS_LANDMARKS", DATA_DIR / "processed" / "landmarks" / "letters",
+                                           RUNTIME_DIR / "letters")
     )
     phrases_model_dir: Path = field(
         default_factory=lambda: Path(os.getenv("MUDRA_PHRASES_MODEL_DIR", BACKEND_DIR / "models" / "isl_phrases_v1_bilstm"))
     )
     phrases_split: Path = field(
-        default_factory=lambda: Path(os.getenv("MUDRA_PHRASES_SPLIT", BACKEND_DIR.parents[1] / "data" / "metadata" / "splits" / "phrases_v1" / "train.csv"))
+        default_factory=lambda: _data_path("MUDRA_PHRASES_SPLIT", DATA_DIR / "metadata" / "splits" / "phrases_v1" / "train.csv",
+                                           RUNTIME_DIR / "phrases.csv")
     )

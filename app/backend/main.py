@@ -13,9 +13,14 @@ from dotenv import load_dotenv
 load_dotenv(Path(__file__).with_name(".env"))  # local secrets (Google sign-in, admin emails); never committed
 
 from mudra_api.app import create_app
+from mudra_api.recordings import seed_recordings
+from mudra_api.settings import RUNTIME_DIR, Settings
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
-app = create_app()
+settings = Settings()
+if seeded := seed_recordings(settings.recordings_dir, RUNTIME_DIR):
+    logging.getLogger("mudra").info("Copied %d packed app recordings into %s", seeded, settings.recordings_dir)
+app = create_app(settings)
 
 
 if __name__ == "__main__":

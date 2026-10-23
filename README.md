@@ -150,6 +150,14 @@ UI: Signing... / "Looks like X" <---- (3-cut smoothing, threshold,           upp
 7. Phones and the public judges URL: `start_judges.bat` (needs `cloudflared` and the Worker token file; Google
    sign-in needs the OAuth client in `app/backend/.env`): `docs/MOBILE_AND_JUDGES.md`.
 
+**On another PC:** clone, run `start_all.bat`, done. The data the app reads (word, phrase and letter examples, the
+avatar's 3D examples, the taught words) is committed as landmark points in `data/runtime/` (77 MB, no video, no
+names); the first start copies the taught words into `data/` so new recordings sit next to them. Not in Git, copy
+privately if wanted: `app/backend/.env` (Google sign-in, Supabase; without it the demo sign-in is used and cloud
+copies are off) and the Worker token file. Rebuild the pack after recording new signs:
+`app\backend\.venv\Scripts\python.exe tools/setup/build_runtime_pack.py` (`--exclude islwords,...` to leave a
+source out).
+
 Backend: http://localhost:8000 (`/docs`, `/health`, `/labels`, `/predict`, `/recordings`,
 `/reference/{sign}`, `/library`, `/letters/predict`, `/phrases/predict`, `/auth/*`, WebSocket `/stream`). If port 8000 is taken, start both with
 `MUDRA_PORT=8010` (the web server proxies the API to that port; or set `VITE_API_URL=http://localhost:8010` in `app/frontend/.env` to call it directly).
@@ -251,7 +259,9 @@ Tests: `pytest training app/backend/tests` (112) and `npm test` in `app/frontend
 - **Team ISL recordings** (61 words, 101 sentences, 12,637 alphabet photos): provided by the MUDRA team; the
   sentences feed the phrase model and the photos the letter model. Source and licence to be confirmed before any
   public release (the sentence videos may be ISL-CSLTR, CC-BY-4.0).
-- Raw videos and extracted landmarks are not committed; see `data/README.md` for the layout.
+- Raw videos and the full extracted landmarks are not committed; see `data/README.md` for the layout. Committed:
+  `data/runtime/`, one landmark example per word / phrase / letter plus the app recordings (signer as `signer-01`),
+  which is what the app needs at run time (`data/runtime/README.md` lists sources and licences).
 
 ## Roadmap
 
