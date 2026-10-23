@@ -1190,6 +1190,9 @@ that need the model or landmark data skip automatically when those files are mis
   through the public Worker URL from this PC (tunnel registered with the token): built app, manifest, `/health`,
   `/labels` 339, `/auth/me`, sign-in fallback, `/stream` websocket all OK. Not tested: a real Google account (no
   client secret on this PC), a real phone, the portrait camera's effect on accuracy, an admin account.
+- Fix after the first push (`9c417ce`): the proxy rule sent `/models/*.task` (the tracking model files in
+  `public/models/`) to the backend, so the camera could not start on the proxied address; `/model` and `/models`
+  are now proxied as exact paths only. Checked: camera 27 fps, 7 of 8 held-out signs through `localhost:3000`.
 - Baseline before this work: `eae4c60`, clean tree, backend 101 / training 58 / frontend 54 tests, build OK, live
   benchmark 23 / 22 / 22 right at 25 / 12 / 6 fps (unchanged: the recognition path was not touched).
 

@@ -6,12 +6,11 @@ const backend = `http://127.0.0.1:${process.env.MUDRA_PORT || 8000}`
 
 // The API on the page's own origin: the sign-in cookie needs it, and a phone or tunnel visitor reaches one address
 // only. With VITE_API_URL set, the app talks to the backend directly instead (development default on this PC).
+const toBackend = { target: backend, changeOrigin: true, ws: true }
 const proxy = {
-  '^/(health|model|models|labels|predict|stream|recordings|reference|library|letters|phrases|events|speech|tts|asr|captions|auth|api|docs|openapi\\.json)(/|$)': {
-    target: backend,
-    changeOrigin: true,
-    ws: true,
-  },
+  '^/(health|labels|predict|stream|recordings|reference|library|letters|phrases|events|speech|tts|asr|captions|auth|api|docs|openapi\\.json)(/|\\?|$)': toBackend,
+  // exact paths only: /models/*.task and the rest of public/models/ are the tracking model files, served by Vite
+  '^/(model|models)(\\?|$)': toBackend,
 }
 // Public preview through a Cloudflare Quick Tunnel (tools/start_judges_tunnel.ps1): its host names change on every
 // start, so only the tunnel domain is allowed, and only when the judges launcher asks for it.
