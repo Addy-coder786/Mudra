@@ -4,6 +4,8 @@ import { readableSign } from '../services/islDictionary'
 import handTracker from '../services/handTracker'
 import signRecognizer, { toFrame } from '../services/signRecognizer'
 import { listRecordings, saveRecording, deleteRecording } from '../services/recordingClient'
+import { useCloudRecorder } from '../features/cloud/useCloudRecorder'
+import CloudSaveBadge from '../components/CloudSaveBadge'
 
 // App words the trained model does not know yet (no training data so far)
 const SUGGESTED_WORDS = ['Namaste', 'Water', 'Help', 'Yes', 'No', 'Goodbye', 'Home', 'Person']
@@ -68,6 +70,9 @@ export default function RecordPage() {
   const [lastResult, setLastResult] = useState(null)
   const [summary, setSummary] = useState({ total: 0, signs: [], custom_words: [] })
   const [handsVisible, setHandsVisible] = useState(false)
+  const cloud = useCloudRecorder('custom_gesture') // cloud copy of each take (video + track points), if on
+  const cloudRef = useRef(cloud)
+  cloudRef.current = cloud
 
   const refresh = useCallback(async () => {
     try {
@@ -107,7 +112,10 @@ export default function RecordPage() {
     const hasHands = (results.multiHandLandmarks || []).length > 0
     handsSeenRef.current = hasHands ? performance.now() : handsSeenRef.current
     setHandsVisible(performance.now() - handsSeenRef.current < 500)
-    if (framesRef.current) framesRef.current.push(toFrame(results, performance.now() / 1000))
+    if (framesRef.current) {
+      framesRef.current.push(toFrame(results, performance.now() / 1000))
+      cloudRef.current.frame(results)
+    }
   }, [])
 
   const startCamera = async () => {
@@ -121,6 +129,7 @@ export default function RecordPage() {
   }
 
   const stopCamera = () => {
+    cloudRef.current.cancel()
     handTracker.stopCamera()
     framesRef.current = null
     setPhase('idle')
@@ -138,6 +147,7 @@ export default function RecordPage() {
     } catch (err) {
       setLastResult({ ok: false, error: err.message })
     }
+    cloudRef.current.finish({ label: word, notes: `Teach a sign · signer ${signer.trim() || 'anonymous'}` }) // cloud copy, whatever the local save did; its result shows in the badge
     setPhase('idle')
   }, [word, signer, refresh])
 
@@ -155,6 +165,7 @@ export default function RecordPage() {
       }
       clearInterval(tick)
       framesRef.current = []
+      cloudRef.current.begin()
       setPhase('recording')
       const started = performance.now()
       const timer = setInterval(() => {
@@ -198,7 +209,9 @@ export default function RecordPage() {
         </p>
         <p className="text-sm text-mudra-indigo-600 flex items-start gap-2 max-w-3xl">
           <Info className="w-4 h-4 mt-0.5 shrink-0" />
-          Only body and hand landmark points are saved, on this computer, never video.
+          {cloud.on
+            ? 'Body and hand landmark points are saved on this computer; with Cloud save on, the video and the track points of each take also go to the SignLine cloud.'
+            : 'Only body and hand landmark points are saved, on this computer, never video.'}
         </p>
       </header>
 
@@ -263,6 +276,7 @@ export default function RecordPage() {
               {phase === 'saving' ? 'Saving…' : phase === 'idle' ? `Record "${word || '…'}"` : 'Recording…'}
             </button>
             <span className="self-center text-sm text-mudra-indigo-600">or press Space</span>
+            <CloudSaveBadge cloud={cloud} className="self-center" />
           </div>
 
           {lastResult && (

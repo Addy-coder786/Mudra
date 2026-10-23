@@ -135,6 +135,7 @@ build a sentence and speak it.
 |---|---|---|
 | Web app, rebranded **SignLine** (Section 5.2) | Working | Google sign-in with automatic local fallback (2026-10-23, `docs/MOBILE_AND_JUDGES.md`) and User / Admin roles; User: Home, Communication, Learning, Game Mode, Progress, Teach a sign, Settings; Admin: Overview, Users, Content, Records, Reports, Game rules, Settings; checked in desktop and mobile screenshots |
 | **SignLine Emergency** (SOS circle, bottom-right of every page) | **Prototype, demo mode** | buttons / simulated signs / personal gestures → rule-based report with provenance → user confirms → mock delivery to an in-app responder desk; contacts no one; 29 tests; checked in desktop and mobile screenshots. `docs/SIGNLINE_EMERGENCY.md` |
+| **Cloud copies of recordings** (`docs/CLOUD_STORAGE.md`) | Working (2026-10-23) | Teach a sign, Communication and the practice camera upload the camera video and the track points to the team's Supabase project through `/cloud/recordings` (secret key on the server only); "Cloud save" switch on each camera page; off without keys. Checked on the real project (video + 74 / 95 frames stored, rows counted); Learning path by unit tests only |
 | **Meetings: Google Meet / Zoom** (`docs/MEETING_INTEGRATION.md`) | **Prototype, not yet tried in a real call** | Chrome extension (`app/meeting-extension`) shows the MUDRA panel in Meet / Zoom Web and sends the tab audio to local speech recognition (sherpa-onnx); the avatar signs stable phrases while people speak (first sign 1.4-1.9 s after the word in tests), signs -> local Windows voice -> VB-Cable as the meeting microphone. Tested: unit tests, a recorded-voice end to end, the extension on a mock meeting page including real tab capture (started by its shortcut with real keystrokes), the voice through VB-Cable 4.5 (installed, Test route verified, words transcribed back from CABLE Output). Not tested: a real call, a second participant. Meet add-on / Zoom App: code only, need registration |
 | Accounts and roles | **Demo only** | no server accounts or passwords; role kept in the browser; anyone can open Admin (Section 16) |
 | Game Mode | Working (local) | 70 lessons over the 314 words, real recorded examples, quizzes, XP / streak / badges in localStorage; no leaderboard (needs accounts) |
@@ -266,6 +267,7 @@ build a sentence and speak it.
     ├── SCALING_VOCABULARY.md   barriers between words, large-vocabulary benchmark, v9, how to reach 400-500 words
     ├── MEETING_INTEGRATION.md  Meet / Zoom: extension, speech in and out, setup, tests, latency, limits, add-on registration
     ├── MOBILE_AND_JUDGES.md    Google sign-in, phones (PWA, portrait camera), the public judges URL (Cloudflare Worker, tunnel scripts)
+    ├── CLOUD_STORAGE.md        cloud copies of recordings (video + track points) in the team's Supabase project; formats, switch, limits
     ├── blueprints/             versioned development plans (README index; v1.0 = definition of MUDRA v1.0, milestones M0-M6)
     ├── MUDRA_MASTER_PLAN.md    original analysis, dataset research, dated progress log (very detailed)
     ├── architecture.md         short architecture table
@@ -433,6 +435,8 @@ available / Coming soon / Error), never colour alone.
 | `GET /recordings` | recording summary | `total`, `signs[]` (`sign`, `label`, `recordings`, `rejected`, `signers`, `in_model`, `custom_active`, `items[]`), `custom_words[]` |
 | `POST /recordings` | save one recorded sign | request `{label, signer, width, height, frames[] (1-1200, same frame format as /stream with t)}`; response `sample_id`, `label`, `label_readable`, `signer`, `duration_s`, `any_hand_rate`, `quality_flag` (`""`, `too_short`, `low_hand_detection`, `no_pose`), `label_count`, `custom_active`, `in_model`; 422 on invalid input |
 | `DELETE /recordings/{sample_id}` | delete one recording | `{deleted}`; 404 if unknown |
+| `GET /cloud/status?check=1` | cloud copies of recordings (`mudra_api/cloud_store.py`): keys present? with `check`, live row counts | `configured`, `bucket`, `purposes`, `tables`, `reachable` |
+| `POST /cloud/recordings` | multipart: `purpose` (`learning` / `communication` / `custom_gesture`), `label`, `duration`, `fps`, `notes`, `width`, `height`, `skeleton` (JSON frames `{t, pose, lh, rh, face}`), file `video` (WebM, ≤ 150 MB); stores the video in the bucket + `signline_videos`, the frames in `signline_skeleton_recordings`; 503 without keys, 502 when Supabase fails | `purpose`, `label`, `video` {`id`, `storage_path`, `public_url`, `size_bytes`}, `skeleton` {`id`, `frames`} |
 | `GET /auth/me` | who is signed in with Google (`mudra_api/google_auth.py`) | `user` {`email`, `name`, `picture`, `role`} or null, `google_configured` |
 | `GET /auth/google/start?next=/app/home` | begins Google sign-in (popup page): 302 to Google with PKCE, state, nonce in a 10-min HTTP-only cookie; without a client ID + secret a page that reports `not_configured` to the opener | redirect / HTML |
 | `GET /auth/google/callback` | Google's return: code exchange, ID-token check (audience, nonce, verified email); sets the 14-day signed `signline_session` cookie (role `admin` for `SIGNLINE_ADMIN_EMAILS`); a page that reports `success` / `cancelled` / `failed` to the opener and closes | HTML |
@@ -496,6 +500,7 @@ Backend environment variables (`app/backend/mudra_api/settings.py`, `main.py`), 
 | `SIGNLINE_ADMIN_EMAILS` | – | Google accounts (comma separated) that get the admin workspace |
 | `SIGNLINE_AUTH_SECRET` | random per start | HMAC key of the session / OAuth cookies; set it to keep sessions through restarts |
 | `SIGNLINE_AUTH_COOKIE_SECURE` | on when the redirect URI is https | `Secure` flag of the cookies |
+| `SUPABASE_URL`, `SUPABASE_SECRET_KEY`, `SUPABASE_BUCKET`, `SUPABASE_DEFAULT_USER_ID` | – (cloud copies off), `sign_line_video`, the studio's default user | cloud copies of recordings (`docs/CLOUD_STORAGE.md`); the secret key never leaves the server |
 | `MUDRA_EVENTS_LOG` | `experiments/logs/stream_events.jsonl` | per-sign decision log |
 | `MUDRA_RECORDINGS_DIR` | `data` | root for `processed/landmarks/app` and `metadata/manifest_app.csv` |
 | `MUDRA_SESSION_DIR` | unset (off) | opt-in: save each live `/stream` session's landmarks + client diagnostics as `.npz` for `training/scripts/replay_session.py`; needs the signer's consent |
@@ -1159,6 +1164,28 @@ that need the model or landmark data skip automatically when those files are mis
 ---
 
 ## 21. Change log (newest first)
+
+### 2026-10-23 · Cloud copies of recordings in the team's Supabase project (branch `feature/supabase-storage`)
+- Owner: store what people record (camera video and the track points) in the Supabase project of the teammate's
+  SignLine Studio (`boradesanidhya-ship-i/database_isl`, 1 commit, Express + supabase-js), for Learning,
+  Communication and Teach a sign, without breaking the working app. Inspected the studio read-only: bucket
+  `sign_line_video` at `videos/<purpose>/<ts>_<rand>.webm` + table `signline_videos`; track points as
+  `signline_skeleton_recordings.movement_sequence.frames` `{t, pose, lh, rh, face}`; purposes `learning` /
+  `communication` / `custom_gesture`; a default `user_id` (RLS bypassed by the secret key).
+- Built: `mudra_api/cloud_store.py` (`GET /cloud/status`, `POST /cloud/recordings`; Storage + PostgREST over
+  `requests`; failed row insert removes the file), `services/cloudRecorder.js` (MediaRecorder video + track points
+  in the studio's format; `signer-left` = `lh`), `features/cloud/useCloudRecorder.js`, `components/CloudSaveBadge.jsx`
+  (on / off / recording / uploading / saved / failed; off = nothing leaves the device; "not set up" without keys),
+  hooked into Record (one upload per take, after the local save, even when that fails), Communicate (one upload per
+  camera session, label = the sentence) and `SignPracticeCamera` (one per practice session); Record notice and legal
+  wording; `/cloud` in the Vite proxy; `.env.example`; `docs/CLOUD_STORAGE.md`.
+- Checked on the real project with the fake webcam: Teach a sign take → 201, video 549 KB + 74 frames, counts
+  `signline_videos` 7 → 8, `signline_skeleton_recordings` 4 → 5; Communication 9 s session → video 1.2 MB + 95 frames,
+  label "Afternoon"; the stored file answers HTTP 200 at its public URL (the bucket is public). Test rows deleted.
+  Learning practice camera: unit tests only. Tests: backend +5, frontend +5 (67), build OK.
+- Test-harness note: a test Chrome placed off-screen must get `--disable-backgrounding-occluded-windows
+  --disable-renderer-backgrounding`, or the video stops presenting frames and the tracker reports 0 fps (cost an
+  hour today; the page was fine).
 
 ### 2026-10-23 · Google sign-in, phones and the public judges URL, from the teammate's MudraAI (branch `feature/adopt-mudraai`)
 - Owner: adopt Google authentication and the mobile web interface from `AakashTribhuvan/MudraAI` (and `MitIndia`)

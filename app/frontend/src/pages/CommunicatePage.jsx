@@ -22,6 +22,8 @@ import {
 } from 'lucide-react'
 import handTracker, { cameraErrorKind } from '../services/handTracker'
 import signRecognizer, { API_BASE_URL } from '../services/signRecognizer'
+import { useCloudRecorder } from '../features/cloud/useCloudRecorder'
+import CloudSaveBadge from '../components/CloudSaveBadge'
 import faceExpressionTracker from '../services/faceExpressionTracker'
 import { classifyISLSign } from '../services/islClassifier'
 import { ISL_VOCABULARY_LEXICON, buildMultilingualSentence, findISLLexiconItem, readableSign } from '../services/islDictionary'
@@ -64,6 +66,9 @@ export default function CommunicatePage() {
   const cameraPanelRef = useRef(null)
 
   const [cameraActive, setCameraActive] = useState(false)
+  const cloud = useCloudRecorder('communication') // cloud copy of the session (video + track points), if on
+  const cloudRef = useRef(cloud)
+  cloudRef.current = cloud
   const [cameraLoading, setCameraLoading] = useState(false)
   const [cameraError, setCameraError] = useState(null)
   const [cameraIssue, setCameraIssue] = useState(null) // 'black' | 'frozen' while the camera runs
@@ -421,6 +426,7 @@ export default function CommunicatePage() {
     ctx.clearRect(0, 0, canvas.width, canvas.height)
 
     const hasHands = results.multiHandLandmarks && results.multiHandLandmarks.length > 0
+    cloudRef.current.frame(results)
     updateFraming(results)
     if (results.fps) setTrackerFpsThrottled(results.fps, results.diag)
     handTracker.drawPose(ctx, results.poseLandmarks, canvas.width, canvas.height, true)
@@ -508,6 +514,7 @@ export default function CommunicatePage() {
           deviceId: cameraId, resolution: cameraRes, onIssue: setCameraIssue
         })
         setCameraActive(true)
+        cloudRef.current.begin()
         if (window.matchMedia?.('(max-width: 1023px)').matches) {
           cameraPanelRef.current?.scrollIntoView({ block: 'start', behavior: 'smooth' }) // camera + results on one screen
         }
@@ -528,6 +535,7 @@ export default function CommunicatePage() {
   }
 
   const handleStopCamera = () => {
+    cloudRef.current.finish({ label: generatedSentence || 'Communication session', notes: recognizedTokens.join(' ') })
     handTracker.stopCamera()
     setCameraIssue(null)
     signRecognizer.reset()
@@ -909,6 +917,7 @@ export default function CommunicatePage() {
                   <span className={`w-2 h-2 rounded-full ${cameraActive ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'}`}></span>
                   <span className="font-mono">{cameraActive ? 'LIVE TRACKING' : 'OFFLINE'}</span>
                 </div>
+                <CloudSaveBadge cloud={cloud} dark className="communicate-cloud" />
 
                 {cameraActive && (
                   <div className="flex items-center gap-2 bg-black/60 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/10 text-xs font-mono text-mudra-peach-300">

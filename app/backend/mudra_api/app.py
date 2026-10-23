@@ -15,6 +15,7 @@ from mudra_ml.streaming import ModelBundle, SegmenterConfig, StreamingRecognizer
 from pydantic import BaseModel, Field
 
 from mudra_api import __version__
+from mudra_api.cloud_store import cloud_router
 from mudra_api.google_auth import router as google_auth_router
 from mudra_api.library import Library
 from mudra_api.recognizer import SignRecognizer, readable
@@ -378,6 +379,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     def predict(req: PredictRequest) -> dict:
         return require_model().predict(req, settings.min_hand_rate)
 
+    app.include_router(cloud_router())  # cloud copies of recordings (Supabase): /cloud/status, /cloud/recordings
     app.include_router(google_auth_router)  # Google sign-in: /auth/me, /auth/google/start, /auth/google/callback, /auth/logout
     app.include_router(emergency_router())  # SignLine Emergency (self-contained, /api/v1/emergency)
     app.include_router(speech_router(settings, warm_up=True))  # meeting speech: /tts, /asr, /captions (local only)

@@ -5,6 +5,8 @@ import signRecognizer, { API_BASE_URL } from '../../services/signRecognizer'
 import { isLetter, letterSpeller, phraseRecorder } from '../../services/libraryClient'
 import { atRest, bestMatch, describe, frameFeatures, referenceFeatures, signingFrames } from '../../features/practice/handFeatures'
 import StatusPill from '../ui/StatusPill'
+import { useCloudRecorder } from '../../features/cloud/useCloudRecorder'
+import CloudSaveBadge from '../CloudSaveBadge'
 
 const CAMERA_ERRORS = {
   denied: 'Camera permission was denied. Allow the camera for this site, then try again.',
@@ -53,6 +55,9 @@ export default function SignPracticeCamera({ sign, label, kind }) {
   const [refState, setRefState] = useState('loading')
   const [panel, setPanel] = useState({ hands: 0, shape: null, position: null, palm: null, handsMatch: true, body: false, resting: false })
   const [check, setCheck] = useState({ active: false, state: 'idle', result: null })
+  const cloud = useCloudRecorder('learning') // cloud copy of the practice session (video + track points), if on
+  const cloudRef = useRef(cloud)
+  cloudRef.current = cloud
 
   // the example of the current word
   useEffect(() => {
@@ -100,6 +105,7 @@ export default function SignPracticeCamera({ sign, label, kind }) {
     } else if (!n || resting) {
       s.shape = s.position = s.palm = null
     }
+    cloudRef.current.frame(results)
     const now = performance.now()
     if (now - lastPanel.current > 150) {
       lastPanel.current = now
@@ -118,6 +124,7 @@ export default function SignPracticeCamera({ sign, label, kind }) {
   }
 
   const stop = useCallback(() => {
+    cloudRef.current.finish({ label, notes: `Learning · practice ${checkKindRef.current}` })
     stopCheck()
     handTracker.stopCamera()
     setOn(false)
@@ -140,6 +147,7 @@ export default function SignPracticeCamera({ sign, label, kind }) {
     try {
       await handTracker.startCamera(videoRef.current, onResults, { resolution: 480 })
       setOn(true)
+      cloudRef.current.begin()
     } catch (e) {
       setError(CAMERA_ERRORS[cameraErrorKind(e)])
     } finally {
@@ -203,6 +211,7 @@ export default function SignPracticeCamera({ sign, label, kind }) {
         )}
       </div>
       {error && <p role="alert" className="rounded-sl bg-rose-50 p-3 text-sm font-semibold text-rose-700">{error}</p>}
+      <CloudSaveBadge cloud={cloud} />
 
       <div className="grid gap-4 md:grid-cols-[1.2fr_1fr]">
         <div className="relative aspect-[4/3] overflow-hidden rounded-sl bg-sl-ink">
@@ -211,7 +220,7 @@ export default function SignPracticeCamera({ sign, label, kind }) {
           {!on && (
             <div className="absolute inset-0 flex flex-col items-center justify-center p-4 text-center text-white">
               <Hand className="h-8 w-8" aria-hidden="true" />
-              <p className="mt-2 text-sm">Start the camera, then copy the example. Video stays on your device.</p>
+              <p className="mt-2 text-sm">Start the camera, then copy the example.{cloud.on ? ' The session is saved to the SignLine cloud (switch above).' : ' Video stays on your device.'}</p>
             </div>
           )}
         </div>

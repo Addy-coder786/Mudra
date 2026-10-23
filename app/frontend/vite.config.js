@@ -8,7 +8,7 @@ const backend = `http://127.0.0.1:${process.env.MUDRA_PORT || 8000}`
 // only. With VITE_API_URL set, the app talks to the backend directly instead (development default on this PC).
 const toBackend = { target: backend, changeOrigin: true, ws: true }
 const proxy = {
-  '^/(health|labels|predict|stream|recordings|reference|library|letters|phrases|events|speech|tts|asr|captions|auth|api|docs|openapi\\.json)(/|\\?|$)': toBackend,
+  '^/(health|labels|predict|stream|recordings|reference|library|letters|phrases|events|speech|tts|asr|captions|auth|cloud|api|docs|openapi\\.json)(/|\\?|$)': toBackend,
   // exact paths only: /models/*.task and the rest of public/models/ are the tracking model files, served by Vite
   '^/(model|models)(\\?|$)': toBackend,
 }

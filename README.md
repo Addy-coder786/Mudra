@@ -31,6 +31,7 @@ updated at every push and documents the architecture, interfaces, data, models a
 | Data pipeline | MediaPipe landmarks, leakage-safe splits, label audit |
 | Fingerspelling letters A-Z and 99 phrases | New (from the team's alphabet photos and sentence videos): letters 70.9% / phrases 58.3% first guess on held-out data (phrases are always chosen by the user from the top guesses); in Learning, Game Mode and Communication (*Spell* / *Phrase*). Not yet measured on a live webcam. See [`docs/SIGN_LIBRARY.md`](docs/SIGN_LIBRARY.md) |
 | Emergency help (SOS circle, bottom-right) | Prototype in demo mode: explain an emergency with buttons, signs or a personal gesture, check and correct what SignLine understood, confirm, share with an in-app demo responder desk. Contacts no one; signs are simulated because the model does not know most emergency signs. In a real emergency in India, call 112. See [`docs/SIGNLINE_EMERGENCY.md`](docs/SIGNLINE_EMERGENCY.md) |
+| Cloud copies of recordings (new, 2026-10-23) | With **Cloud save** on (switch next to the camera), Teach a sign, Communication and practice sessions also store the camera video and the track points in the team's Supabase project, in the SignLine Studio's formats (`docs/CLOUD_STORAGE.md`). Off unless the server has the keys; a failed upload never affects the local save. Checked against the real project. |
 | Google sign-in, phones, public URL (new, 2026-10-23) | Google sign-in with automatic local fallback and the Google photo in the user card; PWA install on Android / iPhone with a portrait camera; `start_judges.bat` serves the built app through the teammate's Cloudflare Worker URL (checked from this PC: app, API, sign-in fallback and the `/stream` websocket through the public URL). Adopted from the teammate's MudraAI `M2` branch (`docs/MOBILE_AND_JUDGES.md`) |
 | Google Meet / Zoom (new, prototype) | Chrome extension `app/meeting-extension` puts the MUDRA panel in the meeting: what others say is recognised on this computer and signed by the avatar while they speak, with a live caption; your signs are spoken in a local voice into a virtual cable used as the meeting microphone. Tested on a mock meeting page and with recorded speech, not yet in a real call (`docs/MEETING_INTEGRATION.md`) |
 | Known gap | Live use on a laptop webcam is not yet reliable: the browser tracks at ~6 fps on some machines and the model has seen few signers (66.7% on unseen recording sessions) |
@@ -144,7 +145,9 @@ UI: Signing... / "Looks like X" <---- (3-cut smoothing, threshold,           upp
 4. To teach it a new word, open **Teach a sign**, enter your name, pick or type the word and record it
    5 times. The word works in Communication straight away and is saved for the next training run.
 5. **SOS** (bottom-right, every page) opens the demo emergency assistant; it contacts no one.
-6. Phones and the public judges URL: `start_judges.bat` (needs `cloudflared` and the Worker token file; Google
+6. Cloud copies of what people record (video + track points, Supabase): keys in `app/backend/.env`, switch next to the
+   camera; `docs/CLOUD_STORAGE.md`.
+7. Phones and the public judges URL: `start_judges.bat` (needs `cloudflared` and the Worker token file; Google
    sign-in needs the OAuth client in `app/backend/.env`): `docs/MOBILE_AND_JUDGES.md`.
 
 Backend: http://localhost:8000 (`/docs`, `/health`, `/labels`, `/predict`, `/recordings`,
@@ -208,6 +211,7 @@ Mudra/
 └── docs/
     ├── MEETING_INTEGRATION.md    Google Meet / Zoom: extension, speech in and out, setup, tests, limits
     ├── MOBILE_AND_JUDGES.md      Google sign-in, phones (PWA, portrait camera), the public judges URL (Cloudflare Worker)
+    ├── CLOUD_STORAGE.md          cloud copies of recordings (video + track points) in the team's Supabase project
     ├── SIGN_LIBRARY.md           fingerspelling letters and phrases
     ├── SIGNLINE_EMERGENCY.md     emergency assistant
     ├── SCALING_VOCABULARY.md     barriers between words, growing the vocabulary
