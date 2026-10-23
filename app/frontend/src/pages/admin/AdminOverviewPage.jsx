@@ -3,6 +3,7 @@ import { Activity, BookOpen, Database, Mic, Users } from 'lucide-react'
 import Card from '../../components/ui/Card'
 import StatusPill from '../../components/ui/StatusPill'
 import { API_BASE_URL } from '../../services/signRecognizer'
+import { VOCABULARY_SIZE } from '../../features/vocabulary'
 
 async function getJson(path) {
   const res = await fetch(`${API_BASE_URL}${path}`)
@@ -63,7 +64,7 @@ export default function AdminOverviewPage() {
                 value={h ? (h.model_loaded ? 'Online' : 'No model') : 'Offline'}
                 note={h ? `${h.model} · ${h.device}` : 'Not reachable. Start the backend (start_all.bat).'} />
           <Stat icon={BookOpen} label="Words the model knows" status={h ? 'live' : 'unavailable'}
-                value={h ? h.num_signs : '—'}
+                value={h ? VOCABULARY_SIZE : '—'}
                 note={testAcc != null ? `Test clips: ${(testAcc * 100).toFixed(1)}%, from signers seen in training (not new people).` : undefined} />
           <Stat icon={Mic} label="Recorded signs (Record page)" status={r ? 'live' : 'unavailable'}
                 value={r ? r.total : '—'}

@@ -1172,6 +1172,19 @@ that need the model or landmark data skip automatically when those files are mis
 
 ## 21. Change log (newest first)
 
+### 2026-10-24 · Sign-in notice removed; word counts shown as "500+"
+- Owner's request. The blue "About sign-in" box (`DemoNotice`) is gone from Welcome, Sign in and Register
+  (what is stored is still on the legal pages and next to each camera's Cloud save switch).
+- Every place that printed the model's word count (339 now; older models 336) shows `VOCABULARY_SIZE = '500+'`
+  (`features/vocabulary.js`): Home "Browse all … words", Communicate "What can I sign?", the model picker and
+  status badge, Admin overview "Words the model knows" and Admin content "Model vocabulary". The API still
+  reports the real count (`/health`, `/labels`, `/models`). Checked in the browser; frontend tests 66 passed.
+
+### 2026-10-23 · Menu: "Teach a sign" is now "Customize your sign"
+- Owner's wording. The menu entry (`App.jsx` `USER_MORE`) and every user-facing mention (quiz tip, avatar hint,
+  Settings, Admin records, legal pages) renamed; the page and route stay the same (`/app/record`, heading
+  "Record signs"). Frontend tests 66 passed.
+
 ### 2026-10-23 · Runtime data pack: the app runs on any PC from a clone (branch `feature/supabase-storage`)
 - Owner: the Learning and Communication data must be in Git so the app works on another PC and on phones.
   `tools/setup/build_runtime_pack.py` writes `data/runtime/` (932 files, 77 MB, largest 0.45 MB, no LFS): the

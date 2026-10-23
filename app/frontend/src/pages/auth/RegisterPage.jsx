@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import Button from '../../components/ui/Button'
 import { useSession } from '../../context/SessionContext'
-import AuthLayout, { DemoNotice } from './AuthLayout'
+import AuthLayout from './AuthLayout'
 import { EMAIL_RE, Field } from './fields'
 
 export default function RegisterPage() {
@@ -54,7 +54,6 @@ export default function RegisterPage() {
       <p className="text-sm">
         Already have one? <Link to="/signin?role=user" className="font-semibold underline underline-offset-4">Sign in</Link>
       </p>
-      <DemoNotice />
     </AuthLayout>
   )
 }

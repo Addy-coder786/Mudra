@@ -11,7 +11,7 @@ export const TIPS = [
   { kind: 'Did you know', text: 'Indian Sign Language is a language of its own, with its own grammar. It is not Hindi or English spelled out with the hands.' },
   { kind: 'Did you know', text: 'In sign languages the face carries meaning too: for example, raised or lowered eyebrows can mark a question.' },
   { kind: 'Practice tip', text: 'The examples are mirrored like your camera: copy them as if you were looking in a mirror.' },
-  { kind: 'Practice tip', text: 'Signs can differ between regions and signers. If you sign a word differently, teach SignLine your version on the Teach a sign page.' },
+  { kind: 'Practice tip', text: 'Signs can differ between regions and signers. If you sign a word differently, teach SignLine your version on the Customize your sign page.' },
   { kind: 'Did you know', text: 'The Indian Sign Language Research and Training Centre (ISLRTC) publishes an official ISL dictionary on islrtc.nic.in.' },
   { kind: 'Practice tip', text: 'On the Communication page, hold your hands still for a moment after each sign so SignLine can tell where it ends.' },
 ]

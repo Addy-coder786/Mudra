@@ -5,7 +5,7 @@ import { useSession } from '../../context/SessionContext'
 import { startGoogleSignIn } from '../../services/googleSignIn'
 import { sessionFromGoogle } from '../../services/session'
 import { API_BASE_URL } from '../../services/signRecognizer'
-import AuthLayout, { DemoNotice } from './AuthLayout'
+import AuthLayout from './AuthLayout'
 import { Field } from './fields'
 
 const ERRORS = {
@@ -87,7 +87,6 @@ export default function SignInPage() {
         <Link to="/welcome" className="font-semibold underline underline-offset-4">← Choose another role</Link>
         {role === 'user' && <Link to="/register" className="font-semibold underline underline-offset-4">Create a learner profile</Link>}
       </div>
-      <DemoNotice />
     </AuthLayout>
   )
 }

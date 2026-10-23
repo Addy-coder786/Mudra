@@ -62,7 +62,7 @@ export default function SettingsPage({ admin = false }) {
         <Card className="space-y-3 p-5">
           <h2 className="font-display text-xl font-bold">Your data</h2>
           <p className="text-sm text-sl-ink-600">
-            Game Mode progress for “{session?.name}” is stored in this browser. Signs you record on Teach a sign are stored on the
+            Game Mode progress for “{session?.name}” is stored in this browser. Signs you record on Customize your sign are stored on the
             SignLine server and can be deleted there.
           </p>
           {!confirming ? (

@@ -2,7 +2,7 @@
  * Signs without a recording whose form is unambiguous, written as hand landmarks in the same format as a letter
  * photo (/reference/LETTER_X: image x = signer-left, y down, z away from the camera), so letterClip() places them
  * in front of the chest and the landmark solver poses the avatar exactly as it does for recorded data.
- * Only add a sign here when its form is certain; otherwise record it on the Teach a sign page.
+ * Only add a sign here when its form is certain; otherwise record it on the Customize your sign page.
  */
 
 // A flat right hand, fingers up, palm facing the signer's left, thumb towards the body; metres, wrist at 0,

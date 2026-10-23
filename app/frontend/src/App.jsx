@@ -44,7 +44,7 @@ const USER_NAV = [
   { to: '/app/game', label: 'Game Mode', short: 'Game', icon: Gamepad2 },
   { to: '/app/progress', label: 'Progress', icon: TrendingUp },
 ]
-const USER_MORE = [{ to: '/app/record', label: 'Teach a sign', icon: Disc }, { to: '/app/settings', label: 'Settings', icon: Settings }]
+const USER_MORE = [{ to: '/app/record', label: 'Customize your sign', icon: Disc }, { to: '/app/settings', label: 'Settings', icon: Settings }]
 const ADMIN_NAV = [
   { to: '/admin', label: 'Overview', icon: LayoutDashboard },
   { to: '/admin/users', label: 'Users', icon: Users },

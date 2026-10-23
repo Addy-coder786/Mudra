@@ -3,17 +3,6 @@ import Logo from '../../components/brand/Logo'
 import { DoodleArrow, DoodleSparkle } from '../../components/brand/Doodles'
 import { TAGLINE } from '../../components/brand/tagline'
 
-export function DemoNotice() {
-  return (
-    <p className="rounded-sl border-2 border-dashed border-sl-sky-700/40 bg-sl-sky-100 px-4 py-3 text-sm text-sl-ink-700">
-      <strong>About sign-in.</strong> Google only confirms your email address and name; SignLine keeps no account
-      directory and never sees your Google password. Learners can also continue with just a name, which is remembered
-      only in this browser. Admin access is limited to approved Google accounts. Camera pages store hand and body
-      track points only (and a stick-figure drawing of them), never camera video.
-    </p>
-  )
-}
-
 export default function AuthLayout({ title, subtitle, children }) {
   return (
     <div className="min-h-screen bg-sl-cream">

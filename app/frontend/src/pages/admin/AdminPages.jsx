@@ -6,6 +6,7 @@ import StatusPill from '../../components/ui/StatusPill'
 import { CURRICULUM } from '../../features/game/curriculum'
 import { BADGES, LESSONS, RULES, dayKey } from '../../features/game/progress'
 import { TIPS } from '../../features/game/quiz'
+import { VOCABULARY_SIZE } from '../../features/vocabulary'
 import { ISL_VOCABULARY_LEXICON } from '../../services/islDictionary'
 import { getJson, localProfiles, useApi } from './adminData'
 
@@ -92,7 +93,7 @@ export function AdminContentPage() {
         need a content store on the server, which does not exist yet.
       </AdminHeader>
       <div className="grid gap-4 sm:grid-cols-3">
-        <Card className="p-5"><p className="text-sm font-semibold text-sl-ink-600">Model vocabulary</p><p className="font-display text-3xl font-extrabold">{labels.data?.count ?? '—'}</p><StatusPill status={labels.status === 'live' ? 'live' : 'unavailable'} /></Card>
+        <Card className="p-5"><p className="text-sm font-semibold text-sl-ink-600">Model vocabulary</p><p className="font-display text-3xl font-extrabold">{labels.data ? VOCABULARY_SIZE : '—'}</p><StatusPill status={labels.status === 'live' ? 'live' : 'unavailable'} /></Card>
         <Card className="p-5"><p className="text-sm font-semibold text-sl-ink-600">Game Mode lessons</p><p className="font-display text-3xl font-extrabold">{LESSONS.length}</p><p className="text-xs text-sl-ink-600">{CURRICULUM.length} sections · in code (features/game/curriculum.js)</p></Card>
         <Card className="p-5"><p className="text-sm font-semibold text-sl-ink-600">Avatar lexicon</p><p className="font-display text-3xl font-extrabold">{ISL_VOCABULARY_LEXICON.length}</p><p className="text-xs text-sl-ink-600">Descriptions not yet checked by an ISL signer</p></Card>
       </div>
@@ -162,7 +163,7 @@ export function AdminRecordsPage() {
   return (
     <div className={page}>
       <AdminHeader title="Records">
-        Real server records: signs recorded on Teach a sign (landmarks only, no video) and the live recognition log (one
+        Real server records: signs recorded on Customize your sign (landmarks only, no video) and the live recognition log (one
         line per detected sign; no landmarks). There are no account, lesson or audit records on the server yet.
       </AdminHeader>
       {msg && <p role="status" className="rounded-sl border-2 border-sl-ink bg-white p-3 text-sm font-semibold">{msg}</p>}

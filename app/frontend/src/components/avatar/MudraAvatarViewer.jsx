@@ -142,7 +142,7 @@ export default function MudraAvatarViewer({
               ? 'Letter shapes are not available on this server, so letters use approximate hand-made animations.'
               : seqInfo.fallbackLetters.length || seqInfo.fallbackWords.length
                 ? `Approximate hand-made animation for: ${[...seqInfo.fallbackWords, ...seqInfo.fallbackLetters.map((l) => `letter ${l}`)].join(', ')}.`
-                : `Spelled letter by letter (no recorded sign yet): ${seqInfo.spelledWords.join(', ')}. Record it on Teach a sign and the avatar will sign it.`}
+                : `Spelled letter by letter (no recorded sign yet): ${seqInfo.spelledWords.join(', ')}. Record it on Customize your sign and the avatar will sign it.`}
           </div>
         )}
 

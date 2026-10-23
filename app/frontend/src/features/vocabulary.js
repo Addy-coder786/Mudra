@@ -10,6 +10,9 @@ import { fetchLibrary } from '../services/libraryClient'
  */
 let cache = null
 
+// How the app states its vocabulary size wherever a word count is shown (owner's wording, 2026-10-24)
+export const VOCABULARY_SIZE = '500+'
+
 export function fetchVocabulary() {
   if (!cache) {
     cache = fetch(`${API_BASE_URL}/labels`)

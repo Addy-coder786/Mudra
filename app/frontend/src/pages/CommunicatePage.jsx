@@ -23,6 +23,7 @@ import {
 import handTracker, { cameraErrorKind } from '../services/handTracker'
 import signRecognizer, { API_BASE_URL } from '../services/signRecognizer'
 import { useCloudRecorder } from '../features/cloud/useCloudRecorder'
+import { VOCABULARY_SIZE } from '../features/vocabulary'
 import CloudSaveBadge from '../components/CloudSaveBadge'
 import faceExpressionTracker from '../services/faceExpressionTracker'
 import { classifyISLSign } from '../services/islClassifier'
@@ -1000,7 +1001,7 @@ export default function CommunicatePage() {
                   onClick={() => setVocabOpen((o) => !o)}
                   className="w-full flex items-center justify-between text-xs font-bold text-mudra-indigo-900 font-display"
                 >
-                  <span>What can I sign? {vocab.length} words the camera recognises</span>
+                  <span>What can I sign? {VOCABULARY_SIZE} words the camera recognises</span>
                   <span className="font-mono text-mudra-indigo-500">{vocabOpen ? 'hide' : 'show'}</span>
                 </button>
                 {vocabOpen && (
@@ -1070,7 +1071,7 @@ export default function CommunicatePage() {
                             className="mt-1 block w-full rounded-xl border border-mudra-lavender-300 bg-white px-2 py-1.5 text-sm">
                       {wordModels.map((m) => (
                         <option key={m.id} value={m.id}>
-                          {m.experimental ? 'Experimental: ' : ''}{m.name} · {m.live_words} words
+                          {m.experimental ? 'Experimental: ' : ''}{m.name} · {VOCABULARY_SIZE} words
                           {m.test_accuracy != null ? ` · ${Math.round(m.test_accuracy * 100)}% (${m.accuracy_split})` : ''}
                         </option>
                       ))}
@@ -1178,7 +1179,7 @@ export default function CommunicatePage() {
                   }`}>
                     <span className={`w-1.5 h-1.5 rounded-full ${modelState.status === 'online' ? 'bg-emerald-500' : 'bg-amber-500'}`}></span>
                     {modelState.status === 'online'
-                      ? `Trained model · ${modelState.info?.num_signs ?? ''} words`
+                      ? `Trained model · ${VOCABULARY_SIZE} words`
                       : modelState.status === 'checking'
                       ? 'Connecting to recognition model...'
                       : 'Offline: rule-based fallback, 8 signs'}

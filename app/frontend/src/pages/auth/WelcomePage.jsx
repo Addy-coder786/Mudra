@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom'
 import { Hand, ShieldCheck, ArrowRight } from 'lucide-react'
-import AuthLayout, { DemoNotice } from './AuthLayout'
+import AuthLayout from './AuthLayout'
 
 const ROLES = [
   {
@@ -41,7 +41,6 @@ export default function WelcomePage() {
           Create a learner profile
         </Link>
       </p>
-      <DemoNotice />
     </AuthLayout>
   )
 }

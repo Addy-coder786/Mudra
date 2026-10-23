@@ -7,7 +7,7 @@ import { DoodleArrow, DoodleSparkle } from '../../components/brand/Doodles'
 import { useSession } from '../../context/SessionContext'
 import { BADGES, LESSON_BY_ID, nextLesson } from '../../features/game/progress'
 import { useGameProgress } from '../../features/game/useGameProgress'
-import { useVocabulary } from '../../features/vocabulary'
+import { VOCABULARY_SIZE, useVocabulary } from '../../features/vocabulary'
 import { GameStats } from '../game/GamePage'
 
 export default function UserHomePage() {
@@ -92,7 +92,7 @@ export default function UserHomePage() {
         <Card className="p-5">
           <h2 className="font-display text-lg font-bold">More ways to learn</h2>
           <div className="mt-3 flex flex-col gap-2">
-            <Link to="/app/learning" className="inline-flex items-center gap-2 text-sm font-bold underline underline-offset-4"><BookOpen className="h-4 w-4" aria-hidden="true" /> Browse all {vocab.status === 'online' ? Object.keys(vocab.labels).length : 314} words</Link>
+            <Link to="/app/learning" className="inline-flex items-center gap-2 text-sm font-bold underline underline-offset-4"><BookOpen className="h-4 w-4" aria-hidden="true" /> Browse all {VOCABULARY_SIZE} words</Link>
             <Link to="/app/record" className="inline-flex items-center gap-2 text-sm font-bold underline underline-offset-4"><Disc className="h-4 w-4" aria-hidden="true" /> Teach SignLine your own sign</Link>
           </div>
         </Card>
