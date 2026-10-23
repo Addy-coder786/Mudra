@@ -220,7 +220,7 @@ export default function SignPracticeCamera({ sign, label, kind }) {
           {!on && (
             <div className="absolute inset-0 flex flex-col items-center justify-center p-4 text-center text-white">
               <Hand className="h-8 w-8" aria-hidden="true" />
-              <p className="mt-2 text-sm">Start the camera, then copy the example.{cloud.on ? ' The session is saved to the SignLine cloud (switch above).' : ' Video stays on your device.'}</p>
+              <p className="mt-2 text-sm">Start the camera, then copy the example.{cloud.on ? ' Video stays on your device; your hand and body track points go to the SignLine cloud (switch above).' : ' Video stays on your device.'}</p>
             </div>
           )}
         </div>

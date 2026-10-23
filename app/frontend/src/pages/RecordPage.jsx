@@ -210,7 +210,7 @@ export default function RecordPage() {
         <p className="text-sm text-mudra-indigo-600 flex items-start gap-2 max-w-3xl">
           <Info className="w-4 h-4 mt-0.5 shrink-0" />
           {cloud.on
-            ? 'Body and hand landmark points are saved on this computer; with Cloud save on, the video and the track points of each take also go to the SignLine cloud.'
+            ? 'Only body and hand landmark points are saved, never video: on this computer, and with Cloud save on also in the SignLine cloud.'
             : 'Only body and hand landmark points are saved, on this computer, never video.'}
         </p>
       </header>

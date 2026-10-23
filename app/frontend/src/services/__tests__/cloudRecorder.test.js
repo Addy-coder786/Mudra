@@ -1,9 +1,9 @@
 import { describe, expect, it, vi } from 'vitest'
-import { CLOUD_SAVE_KEY, cloudSaveEnabled, pickMimeType, setCloudSaveEnabled, toSkeletonFrame, uploadRecording } from '../cloudRecorder'
+import { CLOUD_SAVE_KEY, cloudSaveEnabled, setCloudSaveEnabled, toSkeletonFrame, uploadRecording } from '../cloudRecorder'
 
 const hand = (x) => Array.from({ length: 21 }, (_, i) => ({ x: x + i * 0.001, y: 0.5, z: -0.01 }))
 
-describe('cloud copies of recordings', () => {
+describe('cloud copies of track points', () => {
   it('turns tracker results into the studio frame format, signer-left as lh', () => {
     const pose = Array.from({ length: 33 }, () => ({ x: 0.5, y: 0.4, z: 0, visibility: 0.987 }))
     const f = toSkeletonFrame({
@@ -17,6 +17,7 @@ describe('cloud copies of recordings', () => {
     expect(f.pose).toHaveLength(33)
     expect(f.pose[0]).toEqual({ x: 0.5, y: 0.4, z: 0, v: 0.99 })
     expect(f.face).toBeNull()
+    expect(Object.keys(f).sort()).toEqual(['face', 'lh', 'pose', 'rh', 't']) // numbers only, nothing else
     expect(toSkeletonFrame({ multiHandLandmarks: [], poseLandmarks: null }, 0)).toEqual({ t: 0, pose: null, lh: null, rh: null, face: null })
   })
 
@@ -31,26 +32,20 @@ describe('cloud copies of recordings', () => {
     expect(cloudSaveEnabled(storage)).toBe(true)
   })
 
-  it('picks the first video format the browser supports', () => {
-    expect(pickMimeType((m) => m === 'video/webm')).toBe('video/webm')
-    expect(pickMimeType(() => false)).toBe('')
-  })
-
-  it('posts the video and the track points as one form to the backend', async () => {
+  it('posts only the track points as one form to the backend', async () => {
     const fetchImpl = vi.fn(async (url, init) => ({ ok: true, json: async () => ({ purpose: 'learning', url, method: init.method }) }))
-    const video = new Blob(['x'], { type: 'video/webm' })
-    const res = await uploadRecording({ purpose: 'learning', label: 'HELLO', video, skeleton: { fps: 25, frames: [{ t: 0 }] }, duration: 2.5, fps: 25, notes: 'n', width: 640, height: 480 }, fetchImpl)
+    const res = await uploadRecording({ purpose: 'learning', label: 'HELLO', skeleton: { fps: 25, frames: [{ t: 0 }] }, duration: 2.5, fps: 25, notes: 'n', width: 640, height: 480 }, fetchImpl)
     expect(res.method).toBe('POST')
     const [url, init] = fetchImpl.mock.calls[0]
     expect(url).toMatch(/\/cloud\/recordings$/)
     expect(init.credentials).toBe('include')
     const form = init.body
+    expect([...form.keys()].sort()).toEqual(['duration', 'fps', 'height', 'label', 'notes', 'purpose', 'skeleton', 'width'])
     expect(form.get('purpose')).toBe('learning')
-    expect(form.get('label')).toBe('HELLO')
-    expect(form.get('duration')).toBe('2.5')
     expect(JSON.parse(form.get('skeleton'))).toEqual({ fps: 25, frames: [{ t: 0 }] })
-    expect(form.get('video')).toBeInstanceOf(Blob)
-    await expect(uploadRecording({ purpose: 'nope', label: 'x' }, fetchImpl)).rejects.toThrow(/unknown purpose/)
+    expect(form.get('video')).toBeNull()
+    await expect(uploadRecording({ purpose: 'nope', label: 'x', skeleton: { frames: [{ t: 0 }] } }, fetchImpl)).rejects.toThrow(/unknown purpose/)
+    await expect(uploadRecording({ purpose: 'learning', label: 'x', skeleton: { frames: [] } }, fetchImpl)).rejects.toThrow(/no track points/)
     const failing = vi.fn(async () => ({ ok: false, status: 502, json: async () => ({ detail: 'Supabase is not reachable' }) }))
     await expect(uploadRecording({ purpose: 'learning', label: 'x', skeleton: { frames: [{ t: 0 }] } }, failing)).rejects.toThrow(/not reachable/)
   })

@@ -1,4 +1,4 @@
-"""Cloud copies of recordings (mudra_api/cloud_store.py) with Supabase replaced by a fake HTTP layer."""
+"""Cloud copies of track points (mudra_api/cloud_store.py) with Supabase replaced by a fake HTTP layer."""
 
 from __future__ import annotations
 
@@ -9,7 +9,7 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from mudra_api import cloud_store
-from mudra_api.cloud_store import CloudConfig, cloud_router
+from mudra_api.cloud_store import CloudConfig, cloud_router, signer_hash
 
 
 class FakeResponse:
@@ -22,36 +22,28 @@ class FakeResponse:
 
 @pytest.fixture
 def fake(monkeypatch):
-    """Records every Supabase call; `fail` names the table whose insert fails."""
+    """Records every Supabase call; `fail` makes the insert fail."""
     calls = []
-    state = {"fail": None}
+    state = {"fail": False}
 
     def post(url, **kw):
         calls.append(("POST", url, kw))
-        if "/storage/v1/object/" in url:
-            return FakeResponse(200, {"Key": url.rsplit("/", 1)[-1]})
-        table = url.rsplit("/", 1)[-1]
-        if state["fail"] == table:
+        if state["fail"]:
             return FakeResponse(400, text="relation does not exist")
-        return FakeResponse(201, [{"id": f"{table}-id-1", **kw["json"]}])
-
-    def delete(url, **kw):
-        calls.append(("DELETE", url, kw))
-        return FakeResponse(200, [])
+        return FakeResponse(201, [{"id": "row-1", **kw["json"]}])
 
     def get(url, **kw):
         calls.append(("GET", url, kw))
         return FakeResponse(206, [], {"Content-Range": "0-0/7"})
 
     monkeypatch.setattr(cloud_store.requests, "post", post)
-    monkeypatch.setattr(cloud_store.requests, "delete", delete)
     monkeypatch.setattr(cloud_store.requests, "get", get)
     return calls, state
 
 
-CFG = CloudConfig("https://x.supabase.co", "secret-key", "sign_line_video", "user-1")
+CFG = CloudConfig("https://x.supabase.co", "secret-key", "user-1")
 FRAMES = {"fps": 25, "frames": [{"t": 0, "pose": None, "lh": [{"x": 0.1, "y": 0.2, "z": 0}] * 21, "rh": None, "face": None},
-                                {"t": 40, "pose": None, "lh": None, "rh": None, "face": None}]}
+                                {"t": 40, "pose": [{"x": 0.5, "y": 0.4, "z": 0, "v": 0.99}] * 33, "lh": None, "rh": None, "face": None}]}
 
 
 def client_for(cfg):
@@ -60,67 +52,71 @@ def client_for(cfg):
     return TestClient(app)
 
 
-def test_status_and_refusal_when_not_configured(fake):
+def test_status_says_what_is_stored_and_refuses_without_keys(fake):
     c = client_for(None)
-    assert c.get("/cloud/status").json()["configured"] is False
-    r = c.post("/cloud/recordings", data={"purpose": "learning", "label": "HELLO", "skeleton": json.dumps(FRAMES)})
-    assert r.status_code == 503
+    s = c.get("/cloud/status").json()
+    assert s["configured"] is False and s["stores_video"] is False and "no video" in s["stores"]
+    assert c.post("/cloud/recordings", data={"purpose": "learning", "label": "HELLO", "skeleton": json.dumps(FRAMES)}).status_code == 503
     c = client_for(CFG)
     s = c.get("/cloud/status?check=1").json()
-    assert s["configured"] and s["bucket"] == "sign_line_video" and s["tables"]["signline_videos"] == 7
+    assert s["configured"] and s["table"] == "signline_skeleton_recordings" and s["rows"] == 7
 
 
-def test_video_and_track_points_are_stored_like_the_studio(fake):
+def test_track_points_are_stored_like_the_studio_with_no_personal_data(fake, monkeypatch):
     calls, _ = fake
+    monkeypatch.setattr(cloud_store, "session_user", lambda request: {"email": "Asha@Example.com", "name": "Asha", "role": "user"})
     c = client_for(CFG)
     r = c.post("/cloud/recordings", data={"purpose": "custom_gesture", "label": " Namaste ", "duration": "3.2", "fps": "25",
-                                          "notes": "n", "width": "640", "height": "480", "skeleton": json.dumps(FRAMES)},
-               files={"video": ("take.webm", b"\x1a\x45webm-bytes", "video/webm")})
+                                          "notes": "n", "width": "640", "height": "480", "skeleton": json.dumps(FRAMES)})
     assert r.status_code == 201, r.text
-    body = r.json()
-    assert body["video"]["storage_path"].startswith("videos/custom_gesture/") and body["video"]["storage_path"].endswith(".webm")
-    assert body["video"]["public_url"] == f"https://x.supabase.co/storage/v1/object/public/sign_line_video/{body['video']['storage_path']}"
-    assert body["skeleton"] == {"id": "signline_skeleton_recordings-id-1", "frames": 2}
-    upload, videos, skeleton = calls
-    assert upload[1] == f"https://x.supabase.co/storage/v1/object/sign_line_video/{body['video']['storage_path']}"
-    assert upload[2]["headers"]["Authorization"] == "Bearer secret-key" and upload[2]["headers"]["x-upsert"] == "true"
-    assert upload[2]["data"] == b"\x1a\x45webm-bytes"
-    row = videos[2]["json"]
-    assert videos[1].endswith("/rest/v1/signline_videos") and videos[2]["headers"]["Prefer"] == "return=representation"
-    assert row["detected_label"] == "Namaste" and row["purpose"] == "custom_gesture" and row["user_id"] == "user-1"
-    assert row["size_bytes"] == 12 and row["status"] == "uploaded" and row["result_json"]["duration_seconds"] == 3.2
-    seq = skeleton[2]["json"]
-    assert skeleton[1].endswith("/rest/v1/signline_skeleton_recordings")
-    assert seq["action_label"] == "Namaste" and seq["frame_count"] == 2 and seq["fps"] == 25.0
-    assert seq["movement_sequence"]["frames"] == FRAMES["frames"] and seq["duration_seconds"] == 3.2
-    assert seq["metadata"]["video_storage_path"] == body["video"]["storage_path"] and seq["metadata"]["zero_video_storage"] is False
+    assert r.json() == {"purpose": "custom_gesture", "label": "Namaste", "skeleton": {"id": "row-1", "frames": 2}}
+    (_method, url, kw), = calls
+    assert url == "https://x.supabase.co/rest/v1/signline_skeleton_recordings"
+    assert kw["headers"]["Authorization"] == "Bearer secret-key" and kw["headers"]["Prefer"] == "return=representation"
+    row = kw["json"]
+    assert row["action_label"] == "Namaste" and row["purpose"] == "custom_gesture" and row["user_id"] == "user-1"
+    assert row["frame_count"] == 2 and row["fps"] == 25.0 and row["duration_seconds"] == 3.2
+    assert row["movement_sequence"]["frames"] == FRAMES["frames"]
+    meta = row["metadata"]
+    assert meta["zero_video_storage"] is True and meta["signer_hash"] == signer_hash("asha@example.com")
+    assert "email" not in json.dumps(row).lower() and "asha" not in json.dumps(row).lower()
+    assert all("storage" not in c[1] for c in calls)  # no Storage bucket call at all
 
 
-def test_track_points_only_and_bad_input(fake):
+def test_files_are_rejected_and_nothing_is_sent(fake):
+    calls, _ = fake
+    c = client_for(CFG)
+    r = c.post("/cloud/recordings", data={"purpose": "learning", "label": "HELLO", "skeleton": json.dumps(FRAMES)},
+               files={"video": ("take.webm", b"\x1a\x45webm-bytes", "video/webm")})
+    assert r.status_code == 422 and "never video" in r.json()["detail"]
+    assert calls == []
+
+
+@pytest.mark.parametrize("skeleton,why", [
+    ("not json", "not valid JSON"),
+    ("[]", "non-empty"),
+    (json.dumps([{"pose": None}]), "time t"),
+    (json.dumps([{"t": 0, "image": "data:..."}]), "only carry"),
+    (json.dumps([{"t": 0, "lh": [{"x": "0.1"}]}]), "numeric"),
+])
+def test_only_numeric_landmark_frames_are_accepted(fake, skeleton, why):
+    calls, _ = fake
+    c = client_for(CFG)
+    r = c.post("/cloud/recordings", data={"purpose": "learning", "label": "x", "skeleton": skeleton})
+    assert r.status_code == 422 and why in r.json()["detail"]
+    assert calls == []
+    assert c.post("/cloud/recordings", data={"purpose": "other", "label": "x", "skeleton": json.dumps(FRAMES)}).status_code == 422
+
+
+def test_failed_insert_is_reported(fake):
+    _, state = fake
+    state["fail"] = True
     c = client_for(CFG)
     r = c.post("/cloud/recordings", data={"purpose": "communication", "label": "I need water", "skeleton": json.dumps(FRAMES["frames"])})
-    assert r.status_code == 201 and "video" not in r.json() and r.json()["skeleton"]["frames"] == 2
-    assert c.post("/cloud/recordings", data={"purpose": "other", "label": "x", "skeleton": "[]"}).status_code == 422
-    assert c.post("/cloud/recordings", data={"purpose": "learning", "label": "x"}).status_code == 422
-    assert c.post("/cloud/recordings", data={"purpose": "learning", "label": "x", "skeleton": "not json"}).status_code == 422
-    assert c.post("/cloud/recordings", data={"purpose": "learning", "label": "x", "skeleton": "[]"}).status_code == 422
+    assert r.status_code == 502 and "insert failed" in r.json()["detail"]
 
 
-def test_failed_row_insert_removes_the_uploaded_video(fake):
-    calls, state = fake
-    state["fail"] = "signline_videos"
-    c = client_for(CFG)
-    r = c.post("/cloud/recordings", data={"purpose": "learning", "label": "HELLO"},
-               files={"video": ("take.webm", b"bytes", "video/webm")})
-    assert r.status_code == 502 and "signline_videos insert failed" in r.json()["detail"]
-    removed = [c for c in calls if c[0] == "DELETE"]
-    assert len(removed) == 1 and removed[0][2]["json"]["prefixes"][0].startswith("videos/learning/")
-
-
-def test_signer_from_the_google_session_goes_into_the_metadata(fake, monkeypatch):
-    calls, _ = fake
-    monkeypatch.setattr(cloud_store, "session_user", lambda request: {"email": "a@b.c", "name": "Asha", "role": "user"})
-    c = client_for(CFG)
-    r = c.post("/cloud/recordings", data={"purpose": "learning", "label": "HELLO", "skeleton": json.dumps(FRAMES)})
-    assert r.status_code == 201
-    assert calls[-1][2]["json"]["metadata"]["signer"] == {"email": "a@b.c", "name": "Asha", "google": True}
+def test_signer_hash_is_stable_short_and_absent_without_a_signer():
+    assert signer_hash("A@b.c") == signer_hash(" a@B.C ") and len(signer_hash("a@b.c")) == 16
+    assert signer_hash(None) is None and signer_hash("") is None
+    assert "a@b.c" not in signer_hash("a@b.c")
