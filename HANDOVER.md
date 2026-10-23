@@ -1180,7 +1180,7 @@ that need the model or landmark data skip automatically when those files are mis
   from them".
 - Checked on the real project (fake webcam): Teach a sign → 65 frames + a 2.9 s video (73 frames, 136 KB);
   Communication 9 s → 158 frames + a 7.0 s video (176 frames, 307 KB); both played in Chrome from the public URL
-  (metadata read, a frame captured). Test rows and files deleted. Tests: backend 128 (12 cloud + 6 renderer),
+  (metadata read, a frame captured). Test rows and files deleted. Tests: backend 130 (12 cloud + 6 renderer),
   frontend 66, build OK. Limits: VP8 WebM may not play on iPhone Safari; the studio's retrain scripts treat every
   `signline_videos` row as camera video (rows carry `rendered_from_skeleton: true` so they can skip them).
 
