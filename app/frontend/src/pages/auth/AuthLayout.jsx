@@ -9,7 +9,7 @@ export function DemoNotice() {
       <strong>About sign-in.</strong> Google only confirms your email address and name; SignLine keeps no account
       directory and never sees your Google password. Learners can also continue with just a name, which is remembered
       only in this browser. Admin access is limited to approved Google accounts. Camera pages store hand and body
-      track points only, never video.
+      track points only (and a stick-figure drawing of them), never camera video.
     </p>
   )
 }

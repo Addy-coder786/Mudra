@@ -22,7 +22,7 @@ export default function CloudSaveBadge({ cloud, className = '', dark = false }) 
   return (
     <span className={`inline-flex items-center gap-2 ${className}`}>
       <button type="button" onClick={toggle} aria-pressed={enabled} disabled={configured === null}
-              title={enabled ? 'Only your hand and body track points (numbers, never video or images) are saved to the SignLine cloud. Tap to turn off.' : 'Nothing leaves this device. Tap to save your track points (never video) to the SignLine cloud.'}
+              title={enabled ? 'Only your hand and body track points (numbers) are saved to the SignLine cloud, plus a stick-figure video drawn from them. Camera video is never recorded or sent. Tap to turn off.' : 'Nothing leaves this device. Tap to save your track points (never camera video) to the SignLine cloud.'}
               className={`inline-flex min-h-8 items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-semibold ${base}`}>
         {enabled ? <Cloud className="h-3.5 w-3.5" aria-hidden="true" /> : <CloudOff className="h-3.5 w-3.5" aria-hidden="true" />}
         Cloud save (track points only): <span className={tone}>{text}</span>

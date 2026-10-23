@@ -135,7 +135,7 @@ build a sentence and speak it.
 |---|---|---|
 | Web app, rebranded **SignLine** (Section 5.2) | Working | Google sign-in with automatic local fallback (2026-10-23, `docs/MOBILE_AND_JUDGES.md`) and User / Admin roles; User: Home, Communication, Learning, Game Mode, Progress, Teach a sign, Settings; Admin: Overview, Users, Content, Records, Reports, Game rules, Settings; checked in desktop and mobile screenshots |
 | **SignLine Emergency** (SOS circle, bottom-right of every page) | **Prototype, demo mode** | buttons / simulated signs / personal gestures → rule-based report with provenance → user confirms → mock delivery to an in-app responder desk; contacts no one; 29 tests; checked in desktop and mobile screenshots. `docs/SIGNLINE_EMERGENCY.md` |
-| **Cloud copies of track points** (`docs/CLOUD_STORAGE.md`) | Working (2026-10-23) | Teach a sign, Communication and the practice camera upload the hand and body landmarks of each frame (never video, images, names or emails; a signed-in account only as a one-way hash) to the team's Supabase project through `/cloud/recordings` (secret key on the server only; files rejected); "Cloud save (track points only)" switch on each camera page; off without keys. Checked on the real project; Learning path by unit tests only |
+| **Cloud copies of track points + skeleton video** (`docs/CLOUD_STORAGE.md`) | Working (2026-10-23) | Teach a sign, Communication and the practice camera upload the hand and body landmarks of each frame (never camera video, images, names or emails; a signed-in account only as a one-way hash) to the team's Supabase project through `/cloud/recordings` (secret key on the server only; files rejected); the server then draws a stick-figure WebM from those points into the studio's bucket + `signline_videos`, so the recording plays in the studio; "Cloud save (track points only)" switch on each camera page; off without keys. Checked on the real project, videos played back in Chrome; Learning path by unit tests only |
 | **Meetings: Google Meet / Zoom** (`docs/MEETING_INTEGRATION.md`) | **Prototype, not yet tried in a real call** | Chrome extension (`app/meeting-extension`) shows the MUDRA panel in Meet / Zoom Web and sends the tab audio to local speech recognition (sherpa-onnx); the avatar signs stable phrases while people speak (first sign 1.4-1.9 s after the word in tests), signs -> local Windows voice -> VB-Cable as the meeting microphone. Tested: unit tests, a recorded-voice end to end, the extension on a mock meeting page including real tab capture (started by its shortcut with real keystrokes), the voice through VB-Cable 4.5 (installed, Test route verified, words transcribed back from CABLE Output). Not tested: a real call, a second participant. Meet add-on / Zoom App: code only, need registration |
 | Accounts and roles | **Demo only** | no server accounts or passwords; role kept in the browser; anyone can open Admin (Section 16) |
 | Game Mode | Working (local) | 70 lessons over the 314 words, real recorded examples, quizzes, XP / streak / badges in localStorage; no leaderboard (needs accounts) |
@@ -267,7 +267,7 @@ build a sentence and speak it.
     ├── SCALING_VOCABULARY.md   barriers between words, large-vocabulary benchmark, v9, how to reach 400-500 words
     ├── MEETING_INTEGRATION.md  Meet / Zoom: extension, speech in and out, setup, tests, latency, limits, add-on registration
     ├── MOBILE_AND_JUDGES.md    Google sign-in, phones (PWA, portrait camera), the public judges URL (Cloudflare Worker, tunnel scripts)
-    ├── CLOUD_STORAGE.md        cloud copies of track points (never video) in the team's Supabase project; security summary, format, switch
+    ├── CLOUD_STORAGE.md        cloud copies of track points + the skeleton video drawn from them (never camera video); security summary, format, switch
     ├── blueprints/             versioned development plans (README index; v1.0 = definition of MUDRA v1.0, milestones M0-M6)
     ├── MUDRA_MASTER_PLAN.md    original analysis, dataset research, dated progress log (very detailed)
     ├── architecture.md         short architecture table
@@ -435,8 +435,8 @@ available / Coming soon / Error), never colour alone.
 | `GET /recordings` | recording summary | `total`, `signs[]` (`sign`, `label`, `recordings`, `rejected`, `signers`, `in_model`, `custom_active`, `items[]`), `custom_words[]` |
 | `POST /recordings` | save one recorded sign | request `{label, signer, width, height, frames[] (1-1200, same frame format as /stream with t)}`; response `sample_id`, `label`, `label_readable`, `signer`, `duration_s`, `any_hand_rate`, `quality_flag` (`""`, `too_short`, `low_hand_detection`, `no_pose`), `label_count`, `custom_active`, `in_model`; 422 on invalid input |
 | `DELETE /recordings/{sample_id}` | delete one recording | `{deleted}`; 404 if unknown |
-| `GET /cloud/status?check=1` | cloud copies of track points (`mudra_api/cloud_store.py`): keys present? what is stored; with `check`, the live row count | `configured`, `stores` ("track points only …"), `stores_video: false`, `table`, `purposes`, `rows`, `reachable` |
-| `POST /cloud/recordings` | form fields only: `purpose` (`learning` / `communication` / `custom_gesture`), `label`, `skeleton` (JSON frames `{t, pose, lh, rh, face}`, numeric fields only), `duration`, `fps`, `notes`, `width`, `height`; one row in `signline_skeleton_recordings`; any file part → 422; 503 without keys, 502 when Supabase fails | `purpose`, `label`, `skeleton` {`id`, `frames`} |
+| `GET /cloud/status?check=1` | cloud copies (`mudra_api/cloud_store.py`): keys present? what is stored; with `check`, the live row count | `configured`, `stores` ("track points … and a skeleton video drawn from them; no camera video …"), `stores_camera_video: false`, `stores_skeleton_video`, `table`, `video_table`, `purposes`, `rows`, `reachable` |
+| `POST /cloud/recordings` | form fields only: `purpose` (`learning` / `communication` / `custom_gesture`), `label`, `skeleton` (JSON frames `{t, pose, lh, rh, face}`, numeric fields only), `duration`, `fps`, `notes`, `width`, `height`; one row in `signline_skeleton_recordings`, then the server draws a VP8 WebM from the frames (`skeleton_video.py`) into the bucket + `signline_videos`; any file part → 422; 503 without keys, 502 when the row insert fails; a failed drawing keeps the row (`video: null`, `video_error`) | `purpose`, `label`, `skeleton` {`id`, `frames`}, `video` {`id`, `storage_path`, `public_url`, `size_bytes`, `frames`, `fps`, `width`, `height`} or null |
 | `GET /auth/me` | who is signed in with Google (`mudra_api/google_auth.py`) | `user` {`email`, `name`, `picture`, `role`} or null, `google_configured` |
 | `GET /auth/google/start?next=/app/home` | begins Google sign-in (popup page): 302 to Google with PKCE, state, nonce in a 10-min HTTP-only cookie; without a client ID + secret a page that reports `not_configured` to the opener | redirect / HTML |
 | `GET /auth/google/callback` | Google's return: code exchange, ID-token check (audience, nonce, verified email); sets the 14-day signed `signline_session` cookie (role `admin` for `SIGNLINE_ADMIN_EMAILS`); a page that reports `success` / `cancelled` / `failed` to the opener and closes | HTML |
@@ -500,7 +500,7 @@ Backend environment variables (`app/backend/mudra_api/settings.py`, `main.py`), 
 | `SIGNLINE_ADMIN_EMAILS` | – | Google accounts (comma separated) that get the admin workspace |
 | `SIGNLINE_AUTH_SECRET` | random per start | HMAC key of the session / OAuth cookies; set it to keep sessions through restarts |
 | `SIGNLINE_AUTH_COOKIE_SECURE` | on when the redirect URI is https | `Secure` flag of the cookies |
-| `SUPABASE_URL`, `SUPABASE_SECRET_KEY`, `SUPABASE_DEFAULT_USER_ID` | – (cloud copies off), the studio's default user | cloud copies of track points (`docs/CLOUD_STORAGE.md`); the secret key never leaves the server |
+| `SUPABASE_URL`, `SUPABASE_SECRET_KEY`, `SUPABASE_BUCKET`, `SUPABASE_DEFAULT_USER_ID`, `SUPABASE_SKELETON_VIDEO` | – (cloud copies off), `sign_line_video`, the studio's default user, `on` | cloud copies of track points and the skeleton video drawn from them (`docs/CLOUD_STORAGE.md`); the secret key never leaves the server; `off` keeps the rows only |
 | `MUDRA_EVENTS_LOG` | `experiments/logs/stream_events.jsonl` | per-sign decision log |
 | `MUDRA_RECORDINGS_DIR` | `data` | root for `processed/landmarks/app` and `metadata/manifest_app.csv` |
 | `MUDRA_SESSION_DIR` | unset (off) | opt-in: save each live `/stream` session's landmarks + client diagnostics as `.npz` for `training/scripts/replay_session.py`; needs the signer's consent |
@@ -1164,6 +1164,25 @@ that need the model or landmark data skip automatically when those files are mis
 ---
 
 ## 21. Change log (newest first)
+
+### 2026-10-23 · Skeleton video drawn by the server from the track points (branch `feature/supabase-storage`)
+- Owner: every cloud recording must also be watchable as a video in Sanidhya's studio, with no camera picture ever
+  recorded or uploaded. Done on the server from the numbers it already receives (the browser still cannot send
+  files): `mudra_api/skeleton_video.py` draws each frame with OpenCV (studio style: dark background, cyan body,
+  emerald left / violet right hand, caption with label and purpose; no anti-aliasing, so the picture holds only
+  the background and four palette colours, which a test checks), places frames on a constant 25 fps grid by their
+  times (hold until the next point) and encodes VP8 WebM (VP9 fallback; H.264 is not available here). Clips over
+  90 s: 480×360 at 15 fps (a 5-minute session in ~10 s; a 3 s take in 0.4 s). `cloud_store.store_skeleton_video`
+  uploads it to `videos/<purpose>/<ts>_<rand>_skeleton.webm` with a `signline_videos` row (`rendered_from_skeleton`,
+  `zero_camera_video`, `skeleton_recording_id` …) and links it from the skeleton row; failures keep the track
+  points (`video: null`, `video_error`); `SUPABASE_SKELETON_VIDEO=off` keeps rows only; `/cloud/status` reports
+  `stores_camera_video: false`, `stores_skeleton_video: true`. Badge and page wording: "a stick-figure video drawn
+  from them".
+- Checked on the real project (fake webcam): Teach a sign → 65 frames + a 2.9 s video (73 frames, 136 KB);
+  Communication 9 s → 158 frames + a 7.0 s video (176 frames, 307 KB); both played in Chrome from the public URL
+  (metadata read, a frame captured). Test rows and files deleted. Tests: backend 128 (12 cloud + 6 renderer),
+  frontend 66, build OK. Limits: VP8 WebM may not play on iPhone Safari; the studio's retrain scripts treat every
+  `signline_videos` row as camera video (rows carry `rendered_from_skeleton: true` so they can skip them).
 
 ### 2026-10-23 · Cloud copies reduced to track points only (security review) (branch `feature/supabase-storage`)
 - Owner: judges will question stored faces; keep only the landmarks, as the local recordings do. Done on the same day

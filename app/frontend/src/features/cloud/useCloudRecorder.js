@@ -48,7 +48,8 @@ export function useCloudRecorder(purpose) {
     setState({ status: 'uploading', message: '' })
     try {
       const res = await uploadRecording({ purpose, label, notes, ...data })
-      setState({ status: 'saved', message: `${res.skeleton?.frames ?? data.skeleton.frames.length} frames of track points saved to the cloud (no video)` })
+      const n = res.skeleton?.frames ?? data.skeleton.frames.length
+      setState({ status: 'saved', message: res.video ? `${n} frames of track points + a skeleton video drawn from them saved (no camera video)` : `${n} frames of track points saved to the cloud (no camera video)` })
       return res
     } catch (err) {
       setState({ status: 'failed', message: err.message || 'Cloud save failed' })
