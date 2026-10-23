@@ -347,7 +347,12 @@ class HandTrackerService {
       throw err
     }
     const size = CAMERA_RESOLUTIONS[resolution] || CAMERA_RESOLUTIONS[480]
-    const video = { width: { ideal: size.width }, height: { ideal: size.height }, frameRate: { ideal: 30 } }
+    // A phone held upright has a portrait sensor: a landscape request would give a cropped, sideways picture of
+    // the signer. Ask for portrait there (MudraAI M2); the overlay follows the picture's size (fitCanvas).
+    const portraitPhone = typeof window !== 'undefined' && window.matchMedia?.('(max-width: 767px) and (orientation: portrait)').matches
+    const video = portraitPhone
+      ? { width: { ideal: 480 }, height: { ideal: 854 }, aspectRatio: { ideal: 9 / 16 }, frameRate: { ideal: 30 } }
+      : { width: { ideal: size.width }, height: { ideal: size.height }, frameRate: { ideal: 30 } }
     let stream
     try {
       stream = await navigator.mediaDevices.getUserMedia({
@@ -690,6 +695,10 @@ class HandTrackerService {
       ctx.translate(width, 0)
       ctx.scale(-1, 1)
     }
+    // finger points can sit a few pixels beyond the picture: keep the drawing inside it
+    ctx.beginPath()
+    ctx.rect(0, 0, width, height)
+    ctx.clip()
 
     // 1. Draw Bone Connections with elegant gradient stroke
     ctx.lineWidth = 3.5
@@ -743,6 +752,22 @@ class HandTrackerService {
       ctx.fill()
       ctx.stroke()
     })
+
+    // 3. A dashed box around the hand (MudraAI M2): shows at a glance which hand is being followed
+    const xs = landmarks.map((p) => Math.max(0, Math.min(1, p.x)) * width)
+    const ys = landmarks.map((p) => Math.max(0, Math.min(1, p.y)) * height)
+    const pad = Math.min(24, Math.round(Math.min(width, height) * 0.045))
+    const left = Math.max(0, Math.min(...xs) - pad)
+    const top = Math.max(0, Math.min(...ys) - pad)
+    const right = Math.min(width, Math.max(...xs) + pad)
+    const bottom = Math.min(height, Math.max(...ys) + pad)
+    if (right > left && bottom > top) {
+      ctx.strokeStyle = 'rgba(168, 224, 99, 0.95)'
+      ctx.lineWidth = Math.max(2, Math.min(width, height) * 0.004)
+      ctx.setLineDash([Math.max(6, width * 0.012), Math.max(4, width * 0.008)])
+      ctx.strokeRect(left, top, right - left, bottom - top)
+      ctx.setLineDash([])
+    }
 
     ctx.restore()
   }

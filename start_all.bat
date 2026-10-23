@@ -82,14 +82,49 @@ if "%FRONTEND_NEEDS_INSTALL%"=="1" (
 )
 
 REM --- Launch services ---
+if not defined MUDRA_PORT set "MUDRA_PORT=8000"
 start "MUDRA Backend" cmd /k "cd /d ""%BACKEND_DIR%"" && ""%VENV_DIR%\Scripts\python.exe"" main.py"
+
+if /i "%~1"=="judges" goto JUDGES
 
 cd /d "%FRONTEND_DIR%"
 start "MUDRA Frontend" cmd /k "cd /d ""%FRONTEND_DIR%"" && npm run dev -- --host"
 
 echo.
 echo MUDRA project started.
-echo Backend: http://localhost:8000
+echo Backend: http://localhost:%MUDRA_PORT%
 echo Frontend: http://localhost:3000
 echo.
 pause
+exit /b 0
+
+:JUDGES
+REM Public preview (start_judges.bat, docs/MOBILE_AND_JUDGES.md): the web app on all interfaces with the API on
+REM the same origin, then a Cloudflare Quick Tunnel registered with the permanent Worker URL. Needs cloudflared
+REM and tools\phone-camera-prototype\cloudflare\update-token.txt (never committed).
+echo Waiting for the backend on port %MUDRA_PORT%...
+powershell -NoProfile -Command "$ready = $false; for ($i = 0; $i -lt 180; $i++) { try { $h = Invoke-RestMethod -Uri ('http://127.0.0.1:' + $env:MUDRA_PORT + '/health') -TimeoutSec 2; if ($h.status -eq 'ok' -and $h.model_loaded) { $ready = $true; break } } catch { }; Start-Sleep -Seconds 1 }; if (-not $ready) { exit 1 }"
+if errorlevel 1 (
+    echo ERROR: the backend did not become ready on port %MUDRA_PORT% within 180 seconds. Check the MUDRA Backend window.
+    pause
+    exit /b 1
+)
+REM The production build is served (vite preview): the development server's hundreds of small module requests
+REM take minutes through a tunnel, the built app loads in seconds.
+cd /d "%FRONTEND_DIR%"
+set "VITE_API_URL="
+call npm run build
+if errorlevel 1 (
+    echo ERROR: the web app did not build. See the messages above.
+    pause
+    exit /b 1
+)
+start "MUDRA Frontend" cmd /k "cd /d ""%FRONTEND_DIR%"" && set MUDRA_PORT=%MUDRA_PORT%&& set MUDRA_PUBLIC_TUNNEL=1&& npx vite preview --host 0.0.0.0 --port 3000 --strictPort"
+powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0tools\start_judges_tunnel.ps1"
+if errorlevel 1 (
+    echo.
+    echo ERROR: the public tunnel stopped. Review the messages above before retrying.
+    pause
+    exit /b 1
+)
+exit /b 0

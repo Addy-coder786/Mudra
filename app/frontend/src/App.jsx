@@ -63,16 +63,18 @@ const TAB_ROUTES = {
   progress: '/app/progress', record: '/app/record',
 }
 
-/** Demo role gate: client-side only (see SessionContext). */
+/** Role gate: Google session from the server, or the local session kept in this browser (see SessionContext). */
 function RequireRole({ role, children }) {
-  const { session } = useSession()
+  const { session, ready } = useSession()
+  if (!ready) return null // the start-up loader is showing; the Google cookie is being read
   if (!session) return <Navigate to="/welcome" replace />
   if (session.role !== role) return <Navigate to={session.role === 'admin' ? '/admin' : '/app/home'} replace />
   return children
 }
 
 function StartRoute() {
-  const { session } = useSession()
+  const { session, ready } = useSession()
+  if (!ready) return null
   return <Navigate to={!session ? '/welcome' : session.role === 'admin' ? '/admin' : '/app/home'} replace />
 }
 

@@ -133,7 +133,7 @@ build a sentence and speak it.
 
 | Area | State | Evidence |
 |---|---|---|
-| Web app, rebranded **SignLine** (Section 5.2) | Working | demo sign-in with User / Admin roles; User: Home, Communication, Learning, Game Mode, Progress, Teach a sign, Settings; Admin: Overview, Users, Content, Records, Reports, Game rules, Settings; checked in desktop and mobile screenshots |
+| Web app, rebranded **SignLine** (Section 5.2) | Working | Google sign-in with automatic local fallback (2026-10-23, `docs/MOBILE_AND_JUDGES.md`) and User / Admin roles; User: Home, Communication, Learning, Game Mode, Progress, Teach a sign, Settings; Admin: Overview, Users, Content, Records, Reports, Game rules, Settings; checked in desktop and mobile screenshots |
 | **SignLine Emergency** (SOS circle, bottom-right of every page) | **Prototype, demo mode** | buttons / simulated signs / personal gestures → rule-based report with provenance → user confirms → mock delivery to an in-app responder desk; contacts no one; 29 tests; checked in desktop and mobile screenshots. `docs/SIGNLINE_EMERGENCY.md` |
 | **Meetings: Google Meet / Zoom** (`docs/MEETING_INTEGRATION.md`) | **Prototype, not yet tried in a real call** | Chrome extension (`app/meeting-extension`) shows the MUDRA panel in Meet / Zoom Web and sends the tab audio to local speech recognition (sherpa-onnx); the avatar signs stable phrases while people speak (first sign 1.4-1.9 s after the word in tests), signs -> local Windows voice -> VB-Cable as the meeting microphone. Tested: unit tests, a recorded-voice end to end, the extension on a mock meeting page including real tab capture (started by its shortcut with real keystrokes), the voice through VB-Cable 4.5 (installed, Test route verified, words transcribed back from CABLE Output). Not tested: a real call, a second participant. Meet add-on / Zoom App: code only, need registration |
 | Accounts and roles | **Demo only** | no server accounts or passwords; role kept in the browser; anyone can open Admin (Section 16) |
@@ -265,6 +265,7 @@ build a sentence and speak it.
     ├── SIGNLINE_EMERGENCY.md   Emergency Communication Assistant: behaviour, honesty rules, architecture, API, config, limits
     ├── SCALING_VOCABULARY.md   barriers between words, large-vocabulary benchmark, v9, how to reach 400-500 words
     ├── MEETING_INTEGRATION.md  Meet / Zoom: extension, speech in and out, setup, tests, latency, limits, add-on registration
+    ├── MOBILE_AND_JUDGES.md    Google sign-in, phones (PWA, portrait camera), the public judges URL (Cloudflare Worker, tunnel scripts)
     ├── blueprints/             versioned development plans (README index; v1.0 = definition of MUDRA v1.0, milestones M0-M6)
     ├── MUDRA_MASTER_PLAN.md    original analysis, dataset research, dated progress log (very detailed)
     ├── architecture.md         short architecture table
@@ -365,7 +366,7 @@ purple (admin), sun yellow (completed / badges), sky, pink), offset black shadow
 
 | Route | Page | Data |
 |---|---|---|
-| `/welcome`, `/signin?role=user\|admin`, `/register` | demo sign-in (`SessionContext`) | browser only; registering creates a learner, never an admin |
+| `/welcome`, `/signin?role=user\|admin`, `/register` | Google sign-in (`/auth/*`, popup, `services/googleSignIn.js`) with automatic local fallback for learners (`services/session.js`, `SessionContext`); admin needs an approved Google account (`docs/MOBILE_AND_JUDGES.md`) | `/auth/me`; the local session stays in the browser; registering creates a learner, never an admin |
 | `/app/home` | dashboard: continue learning, streak, XP, level, daily goal, recent lessons, next badge, Communication entry, avatar | Game Mode progress (localStorage), `/labels`, avatar |
 | `/app/communication` | unchanged `CommunicatePage` (live recognition, Voice → Avatar) | `/stream`, `/labels`, `/reference` |
 | `/app/learning` | word library (314 words, search, topic filter, real example via `/reference`) + avatar studio tab | `/labels`, `/reference` |
@@ -432,6 +433,10 @@ available / Coming soon / Error), never colour alone.
 | `GET /recordings` | recording summary | `total`, `signs[]` (`sign`, `label`, `recordings`, `rejected`, `signers`, `in_model`, `custom_active`, `items[]`), `custom_words[]` |
 | `POST /recordings` | save one recorded sign | request `{label, signer, width, height, frames[] (1-1200, same frame format as /stream with t)}`; response `sample_id`, `label`, `label_readable`, `signer`, `duration_s`, `any_hand_rate`, `quality_flag` (`""`, `too_short`, `low_hand_detection`, `no_pose`), `label_count`, `custom_active`, `in_model`; 422 on invalid input |
 | `DELETE /recordings/{sample_id}` | delete one recording | `{deleted}`; 404 if unknown |
+| `GET /auth/me` | who is signed in with Google (`mudra_api/google_auth.py`) | `user` {`email`, `name`, `picture`, `role`} or null, `google_configured` |
+| `GET /auth/google/start?next=/app/home` | begins Google sign-in (popup page): 302 to Google with PKCE, state, nonce in a 10-min HTTP-only cookie; without a client ID + secret a page that reports `not_configured` to the opener | redirect / HTML |
+| `GET /auth/google/callback` | Google's return: code exchange, ID-token check (audience, nonce, verified email); sets the 14-day signed `signline_session` cookie (role `admin` for `SIGNLINE_ADMIN_EMAILS`); a page that reports `success` / `cancelled` / `failed` to the opener and closes | HTML |
+| `POST /auth/logout` | clears the session cookie | `{ok}` |
 | `WS /stream` | live recognition | Section 6.2 |
 | `POST /tts` | text -> speech, local Windows voice (System.Speech in one PowerShell process; 503 off Windows) | `audio/wav`, header `X-TTS-Ms`; request `{text (1-400), voice?, rate -10..10}` |
 | `GET /speech/status` | what meeting speech can do here | `tts {available, voices}`, `asr {available, model, error}`, `local_only` |
@@ -439,7 +444,9 @@ available / Coming soon / Error), never colour alone.
 | `WS /captions?room=R` | listen to a caption room | the same events (room: 16-64 url-safe characters) |
 | `GET /captions/active` | rooms with a live capture on this computer | `rooms[]`: `room`, `since`, `listeners` |
 
-CORS allows `localhost:3000/5173` and `127.0.0.1:3000/5173` plus `MUDRA_CORS_ORIGINS`; methods GET, POST, DELETE.
+CORS allows `localhost:3000/5173` and `127.0.0.1:3000/5173` plus `MUDRA_CORS_ORIGINS`, with credentials (the
+sign-in cookie when the page calls the backend directly); methods GET, POST, DELETE. The Vite dev server and
+`vite preview` proxy these paths to the backend (`vite.config.js`), so by default the app calls its own origin.
 The speech WebSockets check the Origin themselves (the same list plus `chrome-extension://` pages; no Origin = local tool).
 
 ### 6.2 WebSocket `/stream` protocol
@@ -484,6 +491,11 @@ Backend environment variables (`app/backend/mudra_api/settings.py`, `main.py`), 
 | `MUDRA_UNCERTAIN_THRESHOLD` | from model card (0.65) | `/predict` threshold override |
 | `MUDRA_MIN_HAND_RATE` | 0.3 | `/predict`: below this share of frames with hands → `no_hands` |
 | `MUDRA_CORS_ORIGINS` | – | extra comma-separated origins |
+| `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | – (Google sign-in off: learners sign in locally) | OAuth Web client (Google Cloud Console); read from `app/backend/.env` by `main.py` (`python-dotenv`) |
+| `GOOGLE_REDIRECT_URI` | `http://localhost:3000/auth/google/callback` | the public callback (the judges Worker URL + `/auth/google/callback` on the server PC); must be registered on the OAuth client |
+| `SIGNLINE_ADMIN_EMAILS` | – | Google accounts (comma separated) that get the admin workspace |
+| `SIGNLINE_AUTH_SECRET` | random per start | HMAC key of the session / OAuth cookies; set it to keep sessions through restarts |
+| `SIGNLINE_AUTH_COOKIE_SECURE` | on when the redirect URI is https | `Secure` flag of the cookies |
 | `MUDRA_EVENTS_LOG` | `experiments/logs/stream_events.jsonl` | per-sign decision log |
 | `MUDRA_RECORDINGS_DIR` | `data` | root for `processed/landmarks/app` and `metadata/manifest_app.csv` |
 | `MUDRA_SESSION_DIR` | unset (off) | opt-in: save each live `/stream` session's landmarks + client diagnostics as `.npz` for `training/scripts/replay_session.py`; needs the signer's consent |
@@ -494,7 +506,8 @@ Backend environment variables (`app/backend/mudra_api/settings.py`, `main.py`), 
 | `MUDRA_REFERENCE_WORLD_DIR` | `data/processed/landmarks/reference_world` | world-landmark examples for the avatar (`extract_reference_world.py`; optional) |
 | `MUDRA_REFERENCE_SPLIT` | `data/metadata/splits/combined_words_v3/train.csv` | where reference examples come from |
 
-Frontend (`app/frontend/.env`, Vite): `VITE_API_URL` (default `http://localhost:8000`),
+Frontend (`app/frontend/.env`, Vite): `VITE_API_URL` (default: the page's own origin, proxied to port 8000 or
+`MUDRA_PORT` by `vite.config.js`; `MUDRA_PUBLIC_TUNNEL=1` allows `.trycloudflare.com` hosts for the judges tunnel),
 `VITE_SIGN_MODEL=off` disables the model client. Frontend constants worth knowing:
 `CommunicatePage.jsx` (`AUTO_SPEAK_PAUSE_MS` 2500, `AUTO_ADD_MIN` 0.5, `LOW_FPS` 15, `FRAMING`),
 `RecordPage.jsx` (`SUGGESTED_WORDS`, `DURATIONS` 2-5 s, `COUNTDOWN_S` 3, `TARGET_PER_WORD` 5),
@@ -928,6 +941,10 @@ v15b is deployed (2026-10-23); v13b and older are kept for rollback (`MUDRA_MODE
 
 ### Recommended next steps (2026-10-16, in order)
 
+000. **Phone and Google test** (2026-10-23, needs the owner or Aakash, ~20 min, `docs/MOBILE_AND_JUDGES.md`): on the
+    server PC run `start_judges.bat` with the OAuth client in `.env`; on a phone open the Worker URL, install the
+    PWA, sign in with Google (photo in the menu), run Communication with the portrait camera and note how many of
+    10 signs are recognised (the portrait stream is not measured); then sign out. Also try an admin email.
 00. **Restart Chrome on the development laptop** (2026-10-23): it had run since 21 Oct 19:43, before the "High
     performance" GPU setting, so the owner's sessions still drew with the Intel UHD (56-138 ms per frame, 5-7 frames
     per second at the server); plug in the charger and add light (the webcam itself gave 5-7 fps). Then test live.
@@ -1142,6 +1159,39 @@ that need the model or landmark data skip automatically when those files are mis
 ---
 
 ## 21. Change log (newest first)
+
+### 2026-10-23 · Google sign-in, phones and the public judges URL, from the teammate's MudraAI (branch `feature/adopt-mudraai`)
+- Owner: adopt Google authentication and the mobile web interface from `AakashTribhuvan/MudraAI` (and `MitIndia`)
+  so both work in this repository; Aakash runs the public server, the owner demonstrates on localhost; a Google
+  failure must sign the learner in anyway; a Google success shows the profile picture by Sign out.
+- Inspected (read-only, all branches): MudraAI `main` is a 3-file August stub; `signline-demo` / `M2` are this
+  repository plus 5 commits (20-23 Oct, with Copilot): Google OIDC sign-in, PWA manifest via `BASE_URL`, portrait
+  phone camera and hand box, a Vite proxy, a Cloudflare Worker tunnel for judges, Electron desktop packaging,
+  `avatar-lab`, a second model picker, static-pose / ISL500 training scripts and the whole MitIndia phone-camera
+  prototype (1,500-line Python tools). MitIndia `main`: a Camo phone-as-webcam Python prototype with 1,056 photos of
+  signers; no Google auth, no mobile website. The teammate's `Mudra` fork has nothing beyond our history.
+- Adopted and adapted: `mudra_api/google_auth.py` (PKCE, state, nonce, HMAC cookies; **plus** the Google picture in
+  the session and a `not_configured` popup result), `services/googleSignIn.js` (popup flow, injectable for tests),
+  `services/session.js` + `SessionContext` (Google session first, else the local one; `signline_demo_session` kept
+  for tools and tests), `SignInPage` (Google button; learners fall back automatically, also after a blocked-popup
+  redirect; admin never falls back), `Shell` user card with photo / initial, name, email, Google / Local pill (desktop
+  and phone menu), legal wording, `vite.config.js` proxy + `preview` config + `allowedHosts`, same-origin
+  `API_BASE_URL` default, `.env` loading in `main.py`, portrait camera on phones, overlay clip and dashed hand box,
+  `start_judges.bat` / `start_all.bat judges` (serves `npm run build` with `vite preview`: the dev server's module
+  requests took minutes through the tunnel and showed a blank page), `tools/start_judges_tunnel.ps1` and
+  `tools/phone-camera-prototype/cloudflare/` (Worker, config, deploy script; token file git-ignored), `docs/MOBILE_AND_JUDGES.md`.
+- Left out, with reasons: Electron and `avatar-lab` (not asked for), the second model picker (duplicates ours),
+  `requirements-runtime.txt` + launcher rewrite (our launcher kept), static-pose / ISL500 scripts (models already
+  imported on 2026-10-19), the phone-camera prototype (Python Camo tool; its web pages are not the SignLine UI), the
+  MitIndia photos (people's images, licence unclear). No raw data, landmarks, names or secrets were copied.
+- Checked: backend tests incl. 11 new auth tests (Google stubbed), frontend 62 (8 new), training 58, build OK; real
+  Chrome: Google-not-configured click -> local sign-in -> `/app/home` with the "Local user" card; a minted Google
+  cookie -> name, email, photo (`referrerpolicy=no-referrer`) in the sidebar and phone menu, Sign out clears it;
+  through the public Worker URL from this PC (tunnel registered with the token): built app, manifest, `/health`,
+  `/labels` 339, `/auth/me`, sign-in fallback, `/stream` websocket all OK. Not tested: a real Google account (no
+  client secret on this PC), a real phone, the portrait camera's effect on accuracy, an admin account.
+- Baseline before this work: `eae4c60`, clean tree, backend 101 / training 58 / frontend 54 tests, build OK, live
+  benchmark 23 / 22 / 22 right at 25 / 12 / 6 fps (unchanged: the recognition path was not touched).
 
 ### 2026-10-23 · Lost hands are searched again; "camera loses your hands" hint (pushed after `a542887`)
 - Checked the tracking points on held-out sign videos in real Chrome (RTX): hand, finger and shoulder points sit on the

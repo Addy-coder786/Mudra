@@ -15,6 +15,7 @@ from mudra_ml.streaming import ModelBundle, SegmenterConfig, StreamingRecognizer
 from pydantic import BaseModel, Field
 
 from mudra_api import __version__
+from mudra_api.google_auth import router as google_auth_router
 from mudra_api.library import Library
 from mudra_api.recognizer import SignRecognizer, readable
 from mudra_api.recordings import RecordingStore, frames_to_sequence, parse_frame
@@ -45,6 +46,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.cors_origins,
+        allow_credentials=True,  # the sign-in session cookie, when the page and the API are on different origins
         allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE"],
         allow_headers=["Content-Type", "Authorization", "X-Device-Key", "X-Session-Token"],
         expose_headers=["X-TTS-Ms"],
@@ -376,6 +378,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     def predict(req: PredictRequest) -> dict:
         return require_model().predict(req, settings.min_hand_rate)
 
+    app.include_router(google_auth_router)  # Google sign-in: /auth/me, /auth/google/start, /auth/google/callback, /auth/logout
     app.include_router(emergency_router())  # SignLine Emergency (self-contained, /api/v1/emergency)
     app.include_router(speech_router(settings, warm_up=True))  # meeting speech: /tts, /asr, /captions (local only)
     return app

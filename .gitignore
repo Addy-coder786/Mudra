@@ -43,3 +43,6 @@ app/backend/var/
 # redistributed as files. Only the folder's README is tracked.
 app/frontend/src/assets/avatars/*
 !app/frontend/src/assets/avatars/README.md
+
+# Cloudflare Worker update token for the judges tunnel (local secret, never committed)
+tools/phone-camera-prototype/cloudflare/update-token.txt

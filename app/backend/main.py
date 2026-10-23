@@ -6,6 +6,11 @@
 
 import logging
 import os
+from pathlib import Path
+
+from dotenv import load_dotenv
+
+load_dotenv(Path(__file__).with_name(".env"))  # local secrets (Google sign-in, admin emails); never committed
 
 from mudra_api.app import create_app
 

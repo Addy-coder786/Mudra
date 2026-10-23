@@ -9,7 +9,10 @@
  * Configure with VITE_API_URL (backend address) and VITE_SIGN_MODEL=off to disable.
  */
 
-export const API_BASE_URL = import.meta.env?.VITE_API_URL || 'http://localhost:8000'
+// Default: the page's own origin (vite.config.js proxies the API there, so one address serves phones and the tunnel
+// and the sign-in cookie is first-party); VITE_API_URL talks to the backend directly instead.
+const SAME_ORIGIN = typeof window !== 'undefined' && /^https?:/.test(window.location?.origin || '') ? window.location.origin : 'http://localhost:8000'
+export const API_BASE_URL = import.meta.env?.VITE_API_URL || SAME_ORIGIN
 const MODE = import.meta.env?.VITE_SIGN_MODEL || 'auto'
 const WS_URL = API_BASE_URL.replace(/^http/, 'ws') + '/stream'
 const HEALTH_TIMEOUT_MS = 2500

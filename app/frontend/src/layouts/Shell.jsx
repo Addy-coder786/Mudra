@@ -6,6 +6,26 @@ import StatusPill from '../components/ui/StatusPill'
 import { useAccessibility } from '../context/AccessibilityContext'
 import { useSession } from '../context/SessionContext'
 
+/** Who is signed in: Google photo (or the initial), name, and whether the session is Google or local. */
+function UserCard({ session, className = '' }) {
+  if (!session) return null
+  const initial = (session.name || '?').trim().charAt(0).toUpperCase()
+  return (
+    <div className={`mt-2 rounded-sl border border-sl-cream-300 bg-white px-3 py-2 text-xs text-sl-ink-600 ${className}`}>
+      <div className="flex items-center gap-2">
+        {session.picture
+          ? <img src={session.picture} alt="" referrerPolicy="no-referrer" className="h-8 w-8 shrink-0 rounded-full border border-sl-ink/20 object-cover" />
+          : <span aria-hidden="true" className="grid h-8 w-8 shrink-0 place-items-center rounded-full border border-sl-ink/20 bg-sl-cream-200 font-display text-sm font-bold text-sl-ink">{initial}</span>}
+        <div className="min-w-0 flex-1">
+          <span className="block truncate font-bold text-sl-ink">{session.name}</span>
+          {session.email && <span className="block truncate text-[11px]">{session.email}</span>}
+        </div>
+        <StatusPill status={session.google ? 'live' : 'demo'}>{session.google ? 'Google' : 'Local'} {session.role}</StatusPill>
+      </div>
+    </div>
+  )
+}
+
 /**
  * Shared layout for the User and Admin workspaces: sidebar on desktop; on mobile a top bar with a
  * menu for secondary actions plus a bottom bar with the primary destinations (`primary` items).
@@ -23,6 +43,7 @@ export default function Shell({ primary, secondary = [], accent = 'orange', home
 
   const extras = (
     <>
+      <UserCard session={session} className="lg:hidden" />
       {secondary.map(({ to, label, icon: Icon }) => (
         <NavLink key={to} to={to} className={linkCls} onClick={() => setMenuOpen(false)}>
           <Icon className="h-5 w-5" aria-hidden="true" /> {label}
@@ -55,12 +76,7 @@ export default function Shell({ primary, secondary = [], accent = 'orange', home
         </nav>
         <div className="mt-auto flex flex-col gap-1.5 border-t-2 border-dashed border-sl-cream-300 pt-4">
           {extras}
-          <div className="mt-2 rounded-sl border border-sl-cream-300 bg-white px-3 py-2 text-xs text-sl-ink-600">
-            <div className="flex items-center justify-between gap-2">
-              <span className="truncate font-bold text-sl-ink">{session?.name}</span>
-              <StatusPill status="demo">Demo {session?.role}</StatusPill>
-            </div>
-          </div>
+          <UserCard session={session} />
           <p className="px-2 text-[11px] text-sl-ink-600">
             <NavLink to="/legal/privacy" className="underline underline-offset-2">Privacy</NavLink> ·{' '}
             <NavLink to="/legal/terms" className="underline underline-offset-2">Terms</NavLink> ·{' '}

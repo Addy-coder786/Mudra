@@ -48,3 +48,11 @@ node tools/meeting_tests/ext_e2e.mjs "<repo>\experiments\tools\meeting_tests\ext
 
 Tab capture cannot be forced without a user action (Chrome refuses the stream with `--allowlisted-extension-id`),
 which is why `ext_real.mjs` uses real keystrokes.
+
+## Public judges URL (`start_judges.bat`)
+
+| File | What it does |
+|---|---|
+| `start_judges_tunnel.ps1` | Opens a Cloudflare Quick Tunnel to the web app on port 3000, waits for `/health` through it, registers it with the permanent Worker URL (bearer token from `phone-camera-prototype/cloudflare/update-token.txt`, git-ignored), keeps running until closed. Run by `start_judges.bat` after the backend and `vite preview`. |
+| `phone-camera-prototype/cloudflare/` | The Worker (`worker.js`, `wrangler.jsonc`) behind `https://mudra-camera-gateway.aakashtribhuvan2006.workers.dev` and its one-time deploy script (`configure-worker.ps1`, the teammate's Cloudflare account). See its README and `docs/MOBILE_AND_JUDGES.md`. |
+

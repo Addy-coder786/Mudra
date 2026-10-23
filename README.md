@@ -1,8 +1,10 @@
 # MUDRA: Indian Sign Language Learning & Real-Time Communication
 
-**The web app is branded SignLine** (2026-10-16): demo sign-in with User and Admin workspaces, Game Mode
+**The web app is branded SignLine** (2026-10-16): User and Admin workspaces, Game Mode
 lessons, a sign library (words, fingerspelling letters, phrases), an emergency-help assistant and an admin overview.
-Sign-in is a demo with no real accounts; see `HANDOVER.md` Section 5.2. Code and packages keep the name MUDRA.
+Sign-in is with Google (OpenID Connect; learners fall back to a local name when Google is unavailable; admin
+needs an approved Google account), installable on phones as a PWA and reachable through a public judges URL:
+`docs/MOBILE_AND_JUDGES.md`. Code and packages keep the name MUDRA.
 
 MUDRA turns Indian Sign Language (ISL) into text and speech from an ordinary webcam, and turns
 text or speech into ISL with a 3D avatar. It combines a React web app, a FastAPI recognition
@@ -29,6 +31,7 @@ updated at every push and documents the architecture, interfaces, data, models a
 | Data pipeline | MediaPipe landmarks, leakage-safe splits, label audit |
 | Fingerspelling letters A-Z and 99 phrases | New (from the team's alphabet photos and sentence videos): letters 70.9% / phrases 58.3% first guess on held-out data (phrases are always chosen by the user from the top guesses); in Learning, Game Mode and Communication (*Spell* / *Phrase*). Not yet measured on a live webcam. See [`docs/SIGN_LIBRARY.md`](docs/SIGN_LIBRARY.md) |
 | Emergency help (SOS circle, bottom-right) | Prototype in demo mode: explain an emergency with buttons, signs or a personal gesture, check and correct what SignLine understood, confirm, share with an in-app demo responder desk. Contacts no one; signs are simulated because the model does not know most emergency signs. In a real emergency in India, call 112. See [`docs/SIGNLINE_EMERGENCY.md`](docs/SIGNLINE_EMERGENCY.md) |
+| Google sign-in, phones, public URL (new, 2026-10-23) | Google sign-in with automatic local fallback and the Google photo in the user card; PWA install on Android / iPhone with a portrait camera; `start_judges.bat` serves the built app through the teammate's Cloudflare Worker URL (checked from this PC: app, API, sign-in fallback and the `/stream` websocket through the public URL). Adopted from the teammate's MudraAI `M2` branch (`docs/MOBILE_AND_JUDGES.md`) |
 | Google Meet / Zoom (new, prototype) | Chrome extension `app/meeting-extension` puts the MUDRA panel in the meeting: what others say is recognised on this computer and signed by the avatar while they speak, with a live caption; your signs are spoken in a local voice into a virtual cable used as the meeting microphone. Tested on a mock meeting page and with recorded speech, not yet in a real call (`docs/MEETING_INTEGRATION.md`) |
 | Known gap | Live use on a laptop webcam is not yet reliable: the browser tracks at ~6 fps on some machines and the model has seen few signers (66.7% on unseen recording sessions) |
 | Honest reading of the numbers | Test clips come from the same signers and sessions as training clips, so the 97-99% figures below are "new takes by known signers". Accuracy for new people has not been measured. See the audit: [`docs/AUDIT_2026-10-13.md`](docs/AUDIT_2026-10-13.md) |
@@ -141,10 +144,12 @@ UI: Signing... / "Looks like X" <---- (3-cut smoothing, threshold,           upp
 4. To teach it a new word, open **Teach a sign**, enter your name, pick or type the word and record it
    5 times. The word works in Communication straight away and is saved for the next training run.
 5. **SOS** (bottom-right, every page) opens the demo emergency assistant; it contacts no one.
+6. Phones and the public judges URL: `start_judges.bat` (needs `cloudflared` and the Worker token file; Google
+   sign-in needs the OAuth client in `app/backend/.env`): `docs/MOBILE_AND_JUDGES.md`.
 
 Backend: http://localhost:8000 (`/docs`, `/health`, `/labels`, `/predict`, `/recordings`,
-`/reference/{sign}`, `/library`, `/letters/predict`, `/phrases/predict`, WebSocket `/stream`). If port 8000 is taken, start the backend with
-`MUDRA_PORT=8010` and set `VITE_API_URL=http://localhost:8010` in `app/frontend/.env`.
+`/reference/{sign}`, `/library`, `/letters/predict`, `/phrases/predict`, `/auth/*`, WebSocket `/stream`). If port 8000 is taken, start both with
+`MUDRA_PORT=8010` (the web server proxies the API to that port; or set `VITE_API_URL=http://localhost:8010` in `app/frontend/.env` to call it directly).
 Emergency API: `/api/v1/emergency/...`; responder desk at http://localhost:3000/responder (user `demo.responder`, password in `app/backend/var/demo_responder_credentials.txt` after the first start, or set `SIGNLINE_EM_DEMO_RESPONDER_PASSWORD`).
 Requires Python 3.12+ (tested on 3.14) and Node 20+. An NVIDIA GPU is optional (training only).
 The backend `requirements.txt` pins the CUDA 12.8 PyTorch build used for training; for a CPU-only
@@ -202,6 +207,7 @@ Mudra/
 ├── data/                         README only: datasets, landmarks, recordings and splits stay on the local machine
 └── docs/
     ├── MEETING_INTEGRATION.md    Google Meet / Zoom: extension, speech in and out, setup, tests, limits
+    ├── MOBILE_AND_JUDGES.md      Google sign-in, phones (PWA, portrait camera), the public judges URL (Cloudflare Worker)
     ├── SIGN_LIBRARY.md           fingerspelling letters and phrases
     ├── SIGNLINE_EMERGENCY.md     emergency assistant
     ├── SCALING_VOCABULARY.md     barriers between words, growing the vocabulary

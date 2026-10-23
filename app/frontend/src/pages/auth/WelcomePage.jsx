@@ -9,7 +9,7 @@ const ROLES = [
   },
   {
     role: 'admin', icon: ShieldCheck, title: 'I manage SignLine', color: 'bg-sl-purple-50',
-    text: 'See the recognition system status, recorded signs and learning content.',
+    text: 'For approved Google accounts: recognition status, recorded signs and learning content.',
   },
 ]
 
